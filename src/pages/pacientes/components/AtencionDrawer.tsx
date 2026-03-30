@@ -1,0 +1,337 @@
+import { X, ImagePlus, XCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { atencionSchema, type AtencionFormValues } from '../schemas/atencionSchema';
+import { supabase } from '../../../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { type Atencion } from '../HistoriaClinicaPage';
+
+interface AtencionDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+  pacienteId: string;
+  atencion?: Atencion | null;
+  originCitaId?: string | null;
+}
+
+export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencion, originCitaId }: AtencionDrawerProps) {
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, reset } = useForm<AtencionFormValues>({
+    resolver: zodResolver(atencionSchema),
+  });
+
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+  const [podologosList, setPodologosList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPodologos = async () => {
+      const { data } = await supabase.from('podologos').select('id, nombres, color_etiqueta').eq('estado', true);
+      if (data) setPodologosList(data);
+    };
+    fetchPodologos();
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (atencion) {
+        setExistingPhotos(atencion.fotos || []);
+        reset({
+          motivo_consulta: atencion.motivo_consulta,
+          tratamiento: atencion.tratamiento || '',
+          indicaciones: atencion.indicaciones || '',
+          evaluacion_piel: atencion.evaluacion_piel || [],
+          evaluacion_unas: atencion.evaluacion_unas || [],
+          tratamientos_realizados: atencion.tratamientos_realizados || [],
+          podologo_id: atencion.podologo_id || '',
+        });
+      } else {
+        setExistingPhotos([]);
+        reset({
+          motivo_consulta: '',
+          tratamiento: '',
+          indicaciones: '',
+          evaluacion_piel: [],
+          evaluacion_unas: [],
+          tratamientos_realizados: [],
+          podologo_id: '',
+        });
+        
+        if (originCitaId) {
+          const fetchCita = async () => {
+            const { data } = await supabase.from('citas').select('podologo_id').eq('id', originCitaId).single();
+            if (data?.podologo_id) {
+              setValue('podologo_id', data.podologo_id);
+            }
+          };
+          fetchCita();
+        }
+      }
+      setSelectedFiles([]);
+    }
+  }, [atencion, isOpen, reset, originCitaId, setValue]);
+
+  useEffect(() => {
+    const urls = selectedFiles.map(file => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [selectedFiles]);
+
+  const onSubmit = async (data: AtencionFormValues) => {
+    try {
+      const uploadedUrls: string[] = [];
+      if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          const fileExt = file.name.split('.').pop() || 'jpg';
+          const fileName = `${pacienteId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('fotos_clinicas')
+            .upload(fileName, file);
+            
+          if (uploadError) {
+            toast.error(`Error subiendo imagen: ${file.name}`);
+            console.error(uploadError);
+            continue;
+          }
+          
+          const { data: publicData } = supabase.storage
+            .from('fotos_clinicas')
+            .getPublicUrl(fileName);
+            
+          uploadedUrls.push(publicData.publicUrl);
+        }
+      }
+
+      const allPhotos = [...existingPhotos, ...uploadedUrls];
+
+      const dbData: any = {
+        paciente_id: pacienteId,
+        motivo_consulta: data.motivo_consulta,
+        tratamiento: data.tratamiento || null,
+        indicaciones: data.indicaciones || null,
+        fotos: allPhotos.length > 0 ? allPhotos : null,
+        evaluacion_piel: data.evaluacion_piel || [],
+        evaluacion_unas: data.evaluacion_unas || [],
+        tratamientos_realizados: data.tratamientos_realizados,
+        podologo_id: data.podologo_id,
+      };
+
+      if (originCitaId && !atencion?.id) {
+        dbData.cita_id = originCitaId;
+      }
+
+      if (atencion?.id) {
+        const { error } = await supabase.from('atenciones').update(dbData).eq('id', atencion.id);
+        if (error) throw error;
+        toast.success('Atención editada correctamente');
+      } else {
+        const { error } = await supabase.from('atenciones').insert([dbData]);
+        if (error) throw error;
+        toast.success('Nueva atención registrada');
+        
+        if (originCitaId) {
+          await supabase.from('citas').update({ estado: 'Atendida' }).eq('id', originCitaId);
+        }
+      }
+
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      toast.error('Ocurrió un error al guardar');
+      console.error(err);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      <div 
+        className="fixed inset-0 bg-secondary/20 backdrop-blur-sm z-40 transition-opacity"
+        onClick={onClose}
+      />
+      
+      <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-background-container shadow-2xl z-50 transform transition-transform duration-300 flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-xl font-bold text-secondary">
+            {atencion ? 'Editar Atención Médica' : 'Registrar Nueva Atención'}
+          </h2>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-200">
+          <form id="atencion-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-bold text-secondary mb-1">Motivo de Consulta <span className="text-red-500">*</span></label>
+                <input 
+                  type="text"
+                  placeholder="Ej: Uña encarnada, heloma plantar..."
+                  className={`w-full border rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary outline-none transition-colors ${errors.motivo_consulta ? 'border-red-500' : 'border-gray-200'}`}
+                  {...register('motivo_consulta')}
+                />
+                {errors.motivo_consulta && <p className="text-red-500 text-xs mt-1">{errors.motivo_consulta.message}</p>}
+              </div>
+
+              <div className="w-full md:w-64">
+                <label className="block text-sm font-bold text-secondary mb-1">Especialista <span className="text-red-500">*</span></label>
+                <select
+                  className={`w-full border rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary outline-none transition-colors appearance-none ${errors.podologo_id ? 'border-red-500' : 'border-gray-200'}`}
+                  {...register('podologo_id')}
+                >
+                  <option value="">Seleccionar...</option>
+                  {podologosList.map(pod => (
+                    <option key={pod.id} value={pod.id}>{pod.nombres}</option>
+                  ))}
+                </select>
+                {errors.podologo_id && <p className="text-red-500 text-xs mt-1">{errors.podologo_id.message}</p>}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <label className="block text-sm font-bold text-secondary mb-3">Evaluación Física Específica</label>
+              
+              <div className="mb-4">
+                <p className="text-xs font-bold uppercase text-amber-700 tracking-wider mb-2">Estado de la Piel</p>
+                <div className="flex flex-wrap gap-2.5">
+                  {['Seca', 'Normal', 'Grasa', 'Callosidad', 'Durezas', 'Verrugas', 'Grietas'].map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-gray-200 hover:border-amber-300 transition-colors shadow-sm">
+                      <input type="checkbox" value={opt} className="rounded text-amber-500 focus:ring-amber-500" {...register('evaluacion_piel')} />
+                      <span className="text-[13px] font-medium text-gray-700">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase text-purple-700 tracking-wider mb-2">Estado de Uñas</p>
+                <div className="flex flex-wrap gap-2.5">
+                  {['Normal', 'Engrosadas', 'Micóticas/Hongos', 'Encarnadas'].map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-gray-200 hover:border-purple-300 transition-colors shadow-sm">
+                      <input type="checkbox" value={opt} className="rounded text-purple-500 focus:ring-purple-500" {...register('evaluacion_unas')} />
+                      <span className="text-[13px] font-medium text-gray-700">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 md:p-5 rounded-xl border border-gray-200 shadow-sm">
+              <label className="block text-sm font-bold text-secondary mb-3">Tratamientos Realizados <span className="text-red-500">*</span></label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
+                {['Profilaxis Podal', 'Corte de Uñas', 'Eliminación de Callosidades', 'Uña Encarnada', 'Láser', 'Ozono', 'Alta Frecuencia', 'Parafina'].map(opt => (
+                  <label key={opt} className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors group">
+                    <input type="checkbox" value={opt} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300" {...register('tratamientos_realizados')} />
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-blue-800 transition-colors uppercase tracking-tight">{opt}</span>
+                  </label>
+                ))}
+              </div>
+              {errors.tratamientos_realizados && <p className="text-red-500 text-xs mt-2">{errors.tratamientos_realizados.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-secondary mb-1">Observaciones del Tratamiento (Opcional)</label>
+              <textarea 
+                rows={3}
+                placeholder="Detalles adicionales, técnica particular, o anestesias usadas..."
+                className={`w-full border rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary outline-none transition-colors resize-none ${errors.tratamiento ? 'border-red-500' : 'border-gray-200'}`}
+                {...register('tratamiento')}
+              />
+              {errors.tratamiento && <p className="text-red-500 text-xs mt-1">{errors.tratamiento.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-secondary mb-2">Fotografías Clínicas (Opcional)</label>
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg p-5 hover:bg-gray-100 hover:border-primary transition-colors cursor-pointer text-gray-500">
+                  <ImagePlus className="w-5 h-5" />
+                  <span className="font-medium text-sm">Subir nuevas imágenes</span>
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                      }
+                    }}
+                  />
+                </label>
+                
+                {(existingPhotos.length > 0 || previewUrls.length > 0) && (
+                  <div className="grid grid-cols-4 gap-3 mt-1">
+                    {existingPhotos.map((url, i) => (
+                      <div key={`exist-${i}`} className="relative aspect-square rounded-lg border border-gray-200 overflow-hidden group">
+                        <img src={url} alt="Previa existente" className="w-full h-full object-cover" />
+                        <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[9px] text-center py-1 opacity-0 group-hover:opacity-100 transition-opacity">Registrada</div>
+                      </div>
+                    ))}
+                    {previewUrls.map((url, i) => (
+                      <div key={`new-${i}`} className="relative aspect-square rounded-lg border-2 border-primary/50 overflow-hidden group">
+                        <img src={url} alt="Nueva previa" className="w-full h-full object-cover opacity-90" />
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const updated = [...selectedFiles];
+                            updated.splice(i, 1);
+                            setSelectedFiles(updated);
+                          }}
+                          className="absolute top-1 right-1 p-0.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors z-10"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                        <div className="absolute inset-x-0 bottom-0 bg-primary/90 text-white text-[9px] font-bold text-center py-1">Nueva</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-secondary mb-1">Indicaciones (Casa)</label>
+              <textarea 
+                rows={3}
+                placeholder="Ej: Lavar con suero, reposo relativo..."
+                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary resize-none transition-colors"
+                {...register('indicaciones')}
+              />
+              <p className="text-xs text-gray-400 mt-1">Recomendaciones posteriores al tratamiento dado al paciente.</p>
+            </div>
+            
+          </form>
+        </div>
+        
+        <div className="p-6 border-t border-gray-100 bg-background flex justify-end gap-3 rounded-bl-xl">
+          <button 
+            type="button" 
+            onClick={onClose}
+            className="px-5 py-2.5 text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="submit" 
+            form="atencion-form"
+            disabled={isSubmitting}
+            className="px-6 py-2.5 bg-primary disabled:opacity-70 disabled:cursor-not-allowed text-white font-medium rounded-lg hover:bg-[#00ab78] transition-colors shadow-md flex items-center justify-center min-w-[170px]"
+          >
+            {isSubmitting ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              'Guardar Evolución'
+            )}
+          </button>
+        </div>
+        
+      </div>
+    </>
+  );
+}
