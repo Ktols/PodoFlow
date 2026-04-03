@@ -1,0 +1,55 @@
+name: Branch Compliance Control
+
+on:
+  pull_request:
+    branches: [main, QA]
+
+jobs:
+  check-branch-compliance:
+    name: Validar origen del Pull Request
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verificar rama de origen permitida
+        run: |
+          SOURCE="${{ github.head_ref }}"
+          TARGET="${{ github.base_ref }}"
+
+          echo "=========================================="
+          echo "  🔍 Branch Compliance Check"
+          echo "=========================================="
+          echo "  Rama origen:  $SOURCE"
+          echo "  Rama destino: $TARGET"
+          echo "=========================================="
+
+          if [ "$TARGET" == "main" ]; then
+            if [ "$SOURCE" != "QA" ]; then
+              echo ""
+              echo "❌ ERROR: Pull Request rechazado."
+              echo ""
+              echo "La rama 'main' solo acepta PRs desde 'QA'."
+              echo "Rama de origen detectada: '$SOURCE'"
+              echo ""
+              echo "Flujo correcto: develop → QA → main"
+              echo ""
+              exit 1
+            fi
+          fi
+
+          if [ "$TARGET" == "QA" ]; then
+            if [ "$SOURCE" != "develop" ]; then
+              echo ""
+              echo "❌ ERROR: Pull Request rechazado."
+              echo ""
+              echo "La rama 'QA' solo acepta PRs desde 'develop'."
+              echo "Rama de origen detectada: '$SOURCE'"
+              echo ""
+              echo "Flujo correcto: develop → QA → main"
+              echo ""
+              exit 1
+            fi
+          fi
+
+          echo ""
+          echo "✅ Validación exitosa: $SOURCE → $TARGET es un flujo permitido."
+          echo ""
