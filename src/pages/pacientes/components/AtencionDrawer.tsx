@@ -25,13 +25,19 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   const [podologosList, setPodologosList] = useState<any[]>([]);
+  const [serviciosList, setServiciosList] = useState<{id: string, nombre: string, precio_base: number}[]>([]);
 
   useEffect(() => {
     const fetchPodologos = async () => {
       const { data } = await supabase.from('podologos').select('id, nombres, color_etiqueta').eq('estado', true);
       if (data) setPodologosList(data);
     };
+    const fetchServicios = async () => {
+      const { data } = await supabase.from('servicios').select('id, nombre, precio_base').eq('estado', true).order('nombre');
+      if (data) setServiciosList(data);
+    };
     fetchPodologos();
+    fetchServicios();
   }, []);
 
   useEffect(() => {
@@ -224,14 +230,20 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
 
             <div className="bg-white p-4 md:p-5 rounded-xl border border-gray-200 shadow-sm">
               <label className="block text-sm font-bold text-secondary mb-3">Tratamientos Realizados <span className="text-red-500">*</span></label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
-                {['Profilaxis Podal', 'Corte de Uñas', 'Eliminación de Callosidades', 'Uña Encarnada', 'Láser', 'Ozono', 'Alta Frecuencia', 'Parafina'].map(opt => (
-                  <label key={opt} className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors group">
-                    <input type="checkbox" value={opt} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300" {...register('tratamientos_realizados')} />
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-blue-800 transition-colors uppercase tracking-tight">{opt}</span>
-                  </label>
-                ))}
-              </div>
+              {serviciosList.length === 0 ? (
+                <p className="text-sm font-bold text-gray-400 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center">
+                  No hay servicios activos. Cree uno desde Caja → Lista de Precios.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
+                  {serviciosList.map(srv => (
+                    <label key={srv.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors group">
+                      <input type="checkbox" value={srv.nombre} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300" {...register('tratamientos_realizados')} />
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-blue-800 transition-colors uppercase tracking-tight">{srv.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
               {errors.tratamientos_realizados && <p className="text-red-500 text-xs mt-2">{errors.tratamientos_realizados.message}</p>}
             </div>
 
