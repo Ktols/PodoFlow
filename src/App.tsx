@@ -5,7 +5,7 @@ import { AgendaPage } from './pages/agenda/AgendaPage';
 import { PacientesPage } from './pages/pacientes/PacientesPage';
 import { HistoriaClinicaPage } from './pages/pacientes/HistoriaClinicaPage';
 import { EspecialistasPage } from './pages/especialistas/EspecialistasPage';
-import { Caja } from './pages/Caja';
+import { CajaPage } from './pages/caja/CajaPage';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
@@ -19,7 +19,7 @@ export default function App() {
           <Route path="pacientes" element={<PacientesPage />} />
           <Route path="pacientes/:id/historia" element={<HistoriaClinicaPage />} />
           <Route path="especialistas" element={<EspecialistasPage />} />
-          <Route path="caja" element={<Caja />} />
+          <Route path="caja" element={<CajaPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
