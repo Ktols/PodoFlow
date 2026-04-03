@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Users, BriefcaseMedical } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, BriefcaseMedical, UserCog } from 'lucide-react';
 
 export function Sidebar() {
   const routes = [
     { path: '/', name: 'Dashboard', icon: LayoutDashboard },
     { path: '/agenda', name: 'Agenda', icon: Calendar },
     { path: '/pacientes', name: 'Pacientes', icon: Users },
+    { path: '/especialistas', name: 'Personal', icon: UserCog },
     { path: '/caja', name: 'Caja', icon: BriefcaseMedical },
   ];
 

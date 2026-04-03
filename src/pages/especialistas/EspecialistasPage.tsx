@@ -1,0 +1,155 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+import { Plus, Edit2, Search } from 'lucide-react';
+import { EspecialistaDrawer } from './components/EspecialistaDrawer';
+
+export interface Especialista {
+  id: string;
+  dni: string;
+  nombres: string;
+  especialidad: string;
+  telefono: string;
+  correo: string;
+  color_etiqueta: string;
+  estado: boolean;
+  created_at: string;
+}
+
+export function EspecialistasPage() {
+  const [especialistas, setEspecialistas] = useState<Especialista[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [especialistaToEdit, setEspecialistaToEdit] = useState<Especialista | null>(null);
+
+  const fetchEspecialistas = async () => {
+    try {
+      setLoading(true);
+      let query = supabase.from('podologos').select('*').order('nombres', { ascending: true });
+      
+      if (searchTerm) {
+        query = query.or(`nombres.ilike.%${searchTerm}%,dni.ilike.%${searchTerm}%`);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      setEspecialistas(data || []);
+    } catch (err) {
+      console.error('Error fetching especialistas:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEspecialistas();
+  }, [searchTerm]);
+
+  return (
+    <div className="space-y-6 animate-in fade-in">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-secondary tracking-tight">Directorio de Personal</h1>
+          <p className="text-gray-500 mt-1">Gestión de especialistas y colores de agenda</p>
+        </div>
+        <button
+          onClick={() => { setEspecialistaToEdit(null); setIsDrawerOpen(true); }}
+          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold shadow-sm"
+        >
+          <Plus className="w-5 h-5" />
+          Nuevo Especialista
+        </button>
+      </div>
+
+      <div className="max-w-md relative">
+        <input 
+          type="text" 
+          placeholder="Buscar por nombre o DNI..." 
+          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-gray-400"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      </div>
+
+      {/* Tabla */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Especialista</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">DNI</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Contacto</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Color</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm">Cargando directorio...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : especialistas.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500 font-medium bg-gray-50/50">
+                    No se encontraron especialistas registrados.
+                  </td>
+                </tr>
+              ) : (
+                especialistas.map((esp) => (
+                  <tr key={esp.id} className="hover:bg-gray-50/80 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-bold text-secondary text-[15px]">{esp.nombres}</div>
+                      <div className="text-xs text-gray-500 truncate max-w-[200px] font-medium">{esp.especialidad || 'Podología general'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md">{esp.dni}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600">{esp.telefono || '-'}</div>
+                      <div className="text-xs text-gray-400">{esp.correo || 'Sin correo registrado'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="relative inline-flex items-center justify-center w-8 h-8 rounded-full shadow-sm border border-gray-200" style={{ backgroundColor: esp.color_etiqueta || '#cbd5e1' }} title={esp.color_etiqueta}>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${esp.estado ? 'bg-green-50 text-green-700 border border-green-200/50' : 'bg-gray-100 text-gray-600 border border-gray-200/50'}`}>
+                        {esp.estado ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <button 
+                        onClick={() => { setEspecialistaToEdit(esp); setIsDrawerOpen(true); }}
+                        className="text-primary hover:text-white p-2 hover:bg-primary rounded-full transition-colors inline-flex group-hover:bg-primary/10"
+                        title="Editar Especialista"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <EspecialistaDrawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)}
+        onSuccess={fetchEspecialistas}
+        especialista={especialistaToEdit}
+      />
+    </div>
+  );
+}

@@ -11,10 +11,11 @@ interface PacienteDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  onSuccessWithData?: (data: any) => void;
   patient?: Paciente | null;
 }
 
-export function PacienteDrawer({ isOpen, onClose, onSuccess, patient }: PacienteDrawerProps) {
+export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, patient }: PacienteDrawerProps) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<PacienteFormValues>({
     resolver: zodResolver(pacienteSchema),
     defaultValues: {
@@ -67,17 +68,22 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, patient }: Paciente
         fecha_nacimiento: data.fecha_nacimiento ? data.fecha_nacimiento : null,
       };
 
+      let insertedPatient = null;
+
       if (patient?.id) {
-        const { error } = await supabase.from('pacientes').update(dbData).eq('id', patient.id);
+        const { data: updated, error } = await supabase.from('pacientes').update(dbData).eq('id', patient.id).select().single();
         if (error) throw error;
+        insertedPatient = updated;
         toast.success('Paciente actualizado exitosamente');
       } else {
-        const { error } = await supabase.from('pacientes').insert([dbData]);
+        const { data: inserted, error } = await supabase.from('pacientes').insert([dbData]).select().single();
         if (error) throw error;
+        insertedPatient = inserted;
         toast.success('Paciente registrado exitosamente');
       }
 
       onSuccess?.();
+      if (onSuccessWithData && insertedPatient) onSuccessWithData(insertedPatient);
       onClose();
     } catch (err: any) {
       if (err.code === '23505') {
@@ -92,15 +98,15 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, patient }: Paciente
   if (!isOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-[20050]">
       {/* Backdrop overlay */}
       <div 
-        className="fixed inset-0 bg-secondary/20 backdrop-blur-sm z-40 transition-opacity"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-background-container shadow-2xl z-50 transform transition-transform duration-300 flex flex-col">
+      <div className="absolute right-0 top-0 h-full w-full md:w-[500px] lg:max-w-lg bg-background-container shadow-2xl z-[20051] transform transition-transform duration-300 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-secondary">
@@ -184,26 +190,28 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, patient }: Paciente
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-red-50/50 p-4 rounded-xl border border-red-100">
-              <div className="col-span-full mb-1">
+            <div className="bg-red-50/50 p-4 rounded-xl border border-red-100">
+              <div className="col-span-full mb-4">
                 <label className="block text-sm font-bold text-red-800">Antecedentes Clínicos <span className="text-gray-500 font-medium ml-1 text-xs">(Marcar si presenta)</span></label>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-red-600 focus:ring-red-500" {...register('diabetes')} />
-                <span className="text-sm font-medium text-red-900">Diabetes</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-red-600 focus:ring-red-500" {...register('hipertension')} />
-                <span className="text-sm font-medium text-red-900">Hipertensión</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-red-600 focus:ring-red-500" {...register('enfermedad_vascular')} />
-                <span className="text-sm font-medium text-red-900">Enf. Vascular</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-red-600 focus:ring-red-500" {...register('tratamiento_oncologico')} />
-                <span className="text-sm font-medium text-red-900">Trat. Oncológico</span>
-              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 shrink-0 rounded text-red-600 focus:ring-red-500" {...register('diabetes')} />
+                  <span className="text-sm font-medium text-red-900 leading-tight">Diabetes</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 shrink-0 rounded text-red-600 focus:ring-red-500" {...register('hipertension')} />
+                  <span className="text-sm font-medium text-red-900 leading-tight">Hipertensión</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 shrink-0 rounded text-red-600 focus:ring-red-500" {...register('enfermedad_vascular')} />
+                  <span className="text-sm font-medium text-red-900 leading-tight">Enf. Vascular</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 shrink-0 rounded text-red-600 focus:ring-red-500" {...register('tratamiento_oncologico')} />
+                  <span className="text-sm font-medium text-red-900 leading-tight">Trat. Oncológico</span>
+                </label>
+              </div>
               
               <div className="col-span-full mt-2">
                 <label className="block text-sm font-medium text-red-800 mb-1">Detalle de Alergias</label>
@@ -253,6 +261,6 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, patient }: Paciente
         </div>
         
       </div>
-    </>
+    </div>
   );
 }

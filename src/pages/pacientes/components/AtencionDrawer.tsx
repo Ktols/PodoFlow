@@ -110,8 +110,8 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
       const dbData: any = {
         paciente_id: pacienteId,
         motivo_consulta: data.motivo_consulta,
-        tratamiento: data.tratamiento || null,
-        indicaciones: data.indicaciones || null,
+        tratamiento: data.tratamiento || '',
+        indicaciones: data.indicaciones || '',
         fotos: allPhotos.length > 0 ? allPhotos : null,
         evaluacion_piel: data.evaluacion_piel || [],
         evaluacion_unas: data.evaluacion_unas || [],
@@ -148,13 +148,13 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   if (!isOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-[9999]">
       <div 
-        className="fixed inset-0 bg-secondary/20 backdrop-blur-sm z-40 transition-opacity"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       
-      <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-background-container shadow-2xl z-50 transform transition-transform duration-300 flex flex-col">
+      <div className="absolute right-0 top-0 h-full w-full md:w-[500px] bg-background-container shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-secondary">
             {atencion ? 'Editar Atención Médica' : 'Registrar Nueva Atención'}
@@ -332,6 +332,6 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
         </div>
         
       </div>
-    </>
+    </div>
   );
 }

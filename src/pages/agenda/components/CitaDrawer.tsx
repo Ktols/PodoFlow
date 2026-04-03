@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle } from 'lucide-react';
+import { X, Search, AlertTriangle, Plus } from 'lucide-react';
+import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { citaSchema, type CitaFormValues } from '../schemas/citaSchema';
@@ -18,6 +19,7 @@ interface PodologoMin {
   id: string;
   nombres: string;
   color_etiqueta: string;
+  especialidad?: string;
 }
 
 interface CitaDrawerProps {
@@ -31,7 +33,8 @@ interface CitaDrawerProps {
 const TIME_OPTIONS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
   "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
+  "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", 
+  "20:00", "20:30", "21:00", "21:30", "22:00"
 ].map(time => {
   const [h, m] = time.split(':');
   const hNum = parseInt(h, 10);
@@ -39,6 +42,27 @@ const TIME_OPTIONS = [
   const h12 = (hNum % 12) || 12;
   return { value: time, label: `${h12.toString().padStart(2, '0')}:${m} ${ampm}` };
 });
+
+const getSmartInitialTime = (dateStr: string) => {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  if (dateStr === todayStr) {
+    const currentHour = today.getHours();
+    const currentMinute = today.getMinutes();
+    const currentTotalMinutes = currentHour * 60 + currentMinute;
+    
+    for (const option of TIME_OPTIONS) {
+      const [h, m] = option.value.split(':').map(Number);
+      const optTotalMinutes = h * 60 + m;
+      if (optTotalMinutes > currentTotalMinutes) {
+        return option.value;
+      }
+    }
+    return ''; // Pasada la última hora de operación
+  }
+  return '09:00'; // Futuro o por defecto
+};
 
 export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdicion }: CitaDrawerProps) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<CitaFormValues>({
@@ -51,10 +75,35 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   
   const selectedPacienteId = watch('paciente_id');
   const selectedPaciente = pacientes.find(p => p.id === selectedPacienteId);
+  const watchedFechaCita = watch('fecha_cita');
+
+  // Mantiene sincronizada la hora cuando cambia la fecha
+  useEffect(() => {
+    if (isOpen && !citaEnEdicion && watchedFechaCita) {
+      setValue('hora_cita', getSmartInitialTime(watchedFechaCita), { shouldValidate: true });
+    }
+  }, [watchedFechaCita, isOpen, citaEnEdicion, setValue]);
+
+  const handleNewPatientCreated = (newPatientData: any) => {
+    // Add to pacientes list so it resolves selectedPaciente correctly
+    setPacientes([{
+      id: newPatientData.id,
+      nombres: newPatientData.nombres,
+      apellidos: newPatientData.apellidos,
+      numero_documento: newPatientData.numero_documento
+    }]);
+    
+    // Set form value and clear search input
+    setValue('paciente_id', newPatientData.id, { shouldValidate: true });
+    setSearchTerm('');
+    setShowResults(false);
+    setIsNewPatientModalOpen(false);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -83,7 +132,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           paciente_id: '',
           podologo_id: '',
           fecha_cita: localDate,
-          hora_cita: '09:00',
+          hora_cita: getSmartInitialTime(localDate),
           motivo: '',
         });
         setPacientes([]);
@@ -92,7 +141,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
       setValidationError(null);
 
       const fetchPodologos = async () => {
-        const { data } = await supabase.from('podologos').select('id, nombres, color_etiqueta').eq('estado', true);
+        const { data } = await supabase.from('podologos').select('id, nombres, especialidad, color_etiqueta').eq('estado', true);
         if (data) setPodologos(data);
       };
       
@@ -156,7 +205,8 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         .eq('fecha_cita', data.fecha_cita)
         .eq('hora_cita', data.hora_cita)
         .eq('podologo_id', data.podologo_id)
-        .neq('estado', 'Cancelada');
+        .neq('estado', 'Cancelada')
+        .neq('estado', 'CANCELADA');
 
       if (citaEnEdicion) {
         qEspecialista = qEspecialista.neq('id', citaEnEdicion.id);
@@ -208,9 +258,10 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
 
   return (
     <>
-      <div className="fixed inset-0 bg-[#004975]/20 backdrop-blur-sm z-40 transition-opacity animate-in fade-in" onClick={onClose} />
+      <div className="fixed inset-0 z-[9999]">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity animate-in fade-in" onClick={onClose} />
       
-      <div className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
+      <div className="absolute right-0 top-0 h-full w-full md:w-[500px] lg:max-w-lg bg-white shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-black text-[#004975]">{citaEnEdicion ? 'Editar Turno' : 'Nuevo Turno Agenda'}</h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors group">
@@ -229,7 +280,18 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
             
             {/* Buscador Autocompletado Supabase */}
             <div className="relative" ref={wrapperRef}>
-              <label className="block text-sm font-bold text-[#004975] mb-2">Seleccionar Paciente <span className="text-red-500">*</span></label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-bold text-[#004975]">Seleccionar Paciente <span className="text-red-500">*</span></label>
+                {!citaEnEdicion && (
+                  <button 
+                    type="button"
+                    onClick={() => setIsNewPatientModalOpen(true)}
+                    className="text-[11px] font-black uppercase text-[#00C288] hover:text-white bg-[#00C288]/10 hover:bg-[#00C288] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Nuevo Paciente
+                  </button>
+                )}
+              </div>
               
               {!selectedPacienteId ? (
                 <div className="relative">
@@ -308,7 +370,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               >
                 <option value="">-- Seleccione Profesional --</option>
                 {podologos.map(p => (
-                  <option key={p.id} value={p.id}>Pod. {p.nombres}</option>
+                  <option key={p.id} value={p.id}>{p.nombres} ({p.especialidad || 'Podología'})</option>
                 ))}
               </select>
               {errors.podologo_id && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.podologo_id.message}</p>}
@@ -376,7 +438,15 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           </button>
         </div>
         
+        </div>
+        
       </div>
+
+      <PacienteDrawer 
+        isOpen={isNewPatientModalOpen} 
+        onClose={() => setIsNewPatientModalOpen(false)}
+        onSuccessWithData={handleNewPatientCreated}
+      />
     </>
   );
 }
