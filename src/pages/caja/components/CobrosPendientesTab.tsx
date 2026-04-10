@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Clock, User, Stethoscope, CheckCircle2, Receipt, Calendar, Printer } from 'lucide-react';
+import { Clock, User, Stethoscope, CheckCircle2, Receipt, Calendar, Printer, Download } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CobroDrawer } from './CobroDrawer';
 import { TicketPrint } from './TicketPrint';
+import { ExportModal } from '../../../components/ExportModal';
+import type { CsvColumn } from '../../../lib/exportCsv';
 
 interface CitaCaja {
   id: string;
@@ -46,8 +48,80 @@ export function CobrosPendientesTab() {
   const [citaSeleccionada, setCitaSeleccionada] = useState<CitaCaja | null>(null);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportDesde, setExportDesde] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [exportHasta, setExportHasta] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [exportCobro, setExportCobro] = useState('');
+  const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  interface CobroExportRow {
+    fecha: string;
+    hora: string;
+    paciente: string;
+    documento: string;
+    especialista: string;
+    estado_cita: string;
+    monto: string;
+    metodo_pago: string;
+    estado_pago: string;
+    ticket: string;
+  }
+
+  const cobroCsvColumns: CsvColumn<CobroExportRow>[] = [
+    { key: 'fecha', header: 'Fecha' },
+    { key: 'hora', header: 'Hora' },
+    { key: 'paciente', header: 'Paciente' },
+    { key: 'documento', header: 'Documento' },
+    { key: 'especialista', header: 'Especialista' },
+    { key: 'estado_cita', header: 'Estado Cita' },
+    { key: 'monto', header: 'Monto' },
+    { key: 'metodo_pago', header: 'Método Pago' },
+    { key: 'estado_pago', header: 'Estado Pago' },
+    { key: 'ticket', header: 'Nro. Ticket' },
+  ];
+
+  const fetchExportCobros = async (): Promise<CobroExportRow[]> => {
+    const { data: citasData } = await supabase
+      .from('citas')
+      .select(`id, fecha_cita, hora_cita, estado, pacientes (nombres, apellidos, numero_documento), podologos (nombres)`)
+      .gte('fecha_cita', exportDesde)
+      .lte('fecha_cita', exportHasta)
+      .not('estado', 'in', '("Cancelada","No Asistió")')
+      .order('fecha_cita')
+      .order('hora_cita');
+
+    if (!citasData) return [];
+
+    const citaIds = citasData.map((c: any) => c.id);
+    const { data: pagosData } = await supabase
+      .from('pagos')
+      .select('cita_id, monto_total, metodo_pago, estado, numero_ticket')
+      .in('cita_id', citaIds);
+
+    const pagosMap = new Map((pagosData || []).map((p: any) => [p.cita_id, p]));
+
+    const rows: CobroExportRow[] = citasData.map((c: any) => {
+      const pago = pagosMap.get(c.id) as any;
+      return {
+        fecha: c.fecha_cita,
+        hora: formatearHora(c.hora_cita),
+        paciente: `${c.pacientes.nombres} ${c.pacientes.apellidos}`,
+        documento: c.pacientes.numero_documento || '',
+        especialista: c.podologos?.nombres || '',
+        estado_cita: c.estado,
+        monto: pago ? `S/ ${Number(pago.monto_total).toFixed(2)}` : '',
+        metodo_pago: pago?.metodo_pago || '',
+        estado_pago: pago ? 'Pagado' : 'Pendiente',
+        ticket: pago?.numero_ticket ? `TKT-${String(pago.numero_ticket).padStart(6, '0')}` : '',
+      };
+    });
+
+    if (exportCobro === 'pagado') return rows.filter(r => r.estado_pago === 'Pagado');
+    if (exportCobro === 'pendiente') return rows.filter(r => r.estado_pago === 'Pendiente');
+    return rows;
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -183,6 +257,17 @@ export function CobrosPendientesTab() {
 
   return (
     <>
+      {/* Export button */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setIsExportOpen(true)}
+          className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Exportar Cobros
+        </button>
+      </div>
+
       {/* Resumen del Día */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-5">
@@ -413,6 +498,38 @@ export function CobrosPendientesTab() {
         onClose={() => setTicketOpen(false)}
         data={ticketData}
       />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        title="Exportar Cobros"
+        columns={cobroCsvColumns}
+        fetchData={fetchExportCobros}
+        filename={`cobros_${exportDesde}_${exportHasta}`}
+        onFiltersChanged={exportFilterTrigger}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-[#004975] mb-1.5">Desde</label>
+            <input type="date" value={exportDesde} onChange={(e) => { setExportDesde(e.target.value); setExportFilterTrigger(n => n + 1); }}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#004975] mb-1.5">Hasta</label>
+            <input type="date" value={exportHasta} onChange={(e) => { setExportHasta(e.target.value); setExportFilterTrigger(n => n + 1); }}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Estado de cobro</label>
+          <select value={exportCobro} onChange={(e) => { setExportCobro(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none">
+            <option value="">Todos</option>
+            <option value="pagado">Solo pagados</option>
+            <option value="pendiente">Solo pendientes</option>
+          </select>
+        </div>
+      </ExportModal>
     </>
   );
 }

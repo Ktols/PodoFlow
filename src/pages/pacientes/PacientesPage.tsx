@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, MoreVertical, Pencil, ClipboardList } from 'lucide-react';
+import { Plus, Search, MoreVertical, Pencil, ClipboardList, Download } from 'lucide-react';
 import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { PacienteDrawer } from './components/PacienteDrawer';
+import { ExportModal } from '../../components/ExportModal';
 import { supabase } from '../../lib/supabase';
+import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface Paciente {
   id: string;
@@ -30,6 +32,37 @@ export function PacientesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportAlertFilter, setExportAlertFilter] = useState('');
+  const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const pacienteCsvColumns: CsvColumn<Paciente>[] = [
+    { key: 'tipo_documento', header: 'Tipo Doc.' },
+    { key: 'numero_documento', header: 'Nro. Documento' },
+    { key: 'nombres', header: 'Nombres' },
+    { key: 'apellidos', header: 'Apellidos' },
+    { key: 'telefono', header: 'Teléfono' },
+    { key: 'sexo', header: 'Sexo' },
+    { key: 'fecha_nacimiento', header: 'Fecha Nacimiento' },
+    { key: '', header: 'Diabetes', format: (r) => r.diabetes ? 'Sí' : 'No' },
+    { key: '', header: 'Hipertensión', format: (r) => r.hipertension ? 'Sí' : 'No' },
+    { key: '', header: 'Enf. Vascular', format: (r) => r.enfermedad_vascular ? 'Sí' : 'No' },
+    { key: '', header: 'Trat. Oncológico', format: (r) => r.tratamiento_oncologico ? 'Sí' : 'No' },
+    { key: 'alergias_alertas', header: 'Alergias/Alertas' },
+    { key: 'alergias_detalle', header: 'Detalle Alergias' },
+  ];
+
+  const fetchExportPacientes = async (): Promise<Paciente[]> => {
+    const { data, error } = await supabase.from('pacientes').select('*').order('apellidos');
+    if (error || !data) return [];
+    if (exportAlertFilter === 'con_alertas') {
+      return data.filter(p => p.alergias_alertas || p.diabetes || p.hipertension || p.enfermedad_vascular || p.tratamiento_oncologico || p.alergias_detalle);
+    }
+    if (exportAlertFilter === 'sin_alertas') {
+      return data.filter(p => !p.alergias_alertas && !p.diabetes && !p.hipertension && !p.enfermedad_vascular && !p.tratamiento_oncologico && !p.alergias_detalle);
+    }
+    return data;
+  };
 
   const fetchPacientes = async () => {
     setIsLoading(true);
@@ -81,16 +114,25 @@ export function PacientesPage() {
           <p className="text-gray-500 mt-1">Gestión y registro de historias clínicas</p>
         </div>
         
-        <button 
-          onClick={() => {
-            setSelectedPatient(null);
-            setIsDrawerOpen(true);
-          }}
-          className="bg-primary hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-md transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Nuevo Paciente</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar
+          </button>
+          <button
+            onClick={() => {
+              setSelectedPatient(null);
+              setIsDrawerOpen(true);
+            }}
+            className="bg-primary hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-md transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Nuevo Paciente</span>
+          </button>
+        </div>
       </div>
 
       {/* Toolbox (Search) */}
@@ -235,12 +277,35 @@ export function PacientesPage() {
         </div>
       </div>
 
-      <PacienteDrawer 
-        isOpen={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
+      <PacienteDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
         onSuccess={fetchPacientes}
         patient={selectedPatient}
       />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => { setIsExportOpen(false); setExportAlertFilter(''); }}
+        title="Exportar Pacientes"
+        columns={pacienteCsvColumns}
+        fetchData={fetchExportPacientes}
+        filename={`pacientes_${new Date().toISOString().split('T')[0]}`}
+        onFiltersChanged={exportFilterTrigger}
+      >
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Condición médica</label>
+          <select
+            value={exportAlertFilter}
+            onChange={(e) => { setExportAlertFilter(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none"
+          >
+            <option value="">Todos los pacientes</option>
+            <option value="con_alertas">Con alertas médicas</option>
+            <option value="sin_alertas">Sin alertas médicas</option>
+          </select>
+        </div>
+      </ExportModal>
     </div>
   );
 }

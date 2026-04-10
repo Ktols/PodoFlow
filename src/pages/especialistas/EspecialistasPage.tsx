@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit2, Search } from 'lucide-react';
+import { Plus, Edit2, Search, Download } from 'lucide-react';
 import { EspecialistaDrawer } from './components/EspecialistaDrawer';
+import { ExportModal } from '../../components/ExportModal';
+import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface Especialista {
   id: string;
@@ -22,6 +24,27 @@ export function EspecialistasPage() {
   
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [especialistaToEdit, setEspecialistaToEdit] = useState<Especialista | null>(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportEstadoFilter, setExportEstadoFilter] = useState('');
+  const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const especialistaCsvColumns: CsvColumn<Especialista>[] = [
+    { key: 'nombres', header: 'Nombres' },
+    { key: 'dni', header: 'DNI' },
+    { key: 'especialidad', header: 'Especialidad' },
+    { key: 'telefono', header: 'Teléfono' },
+    { key: 'correo', header: 'Correo' },
+    { key: '', header: 'Estado', format: (r) => r.estado ? 'Activo' : 'Inactivo' },
+  ];
+
+  const fetchExportEspecialistas = async (): Promise<Especialista[]> => {
+    let query = supabase.from('podologos').select('*').order('nombres');
+    if (exportEstadoFilter === 'activo') query = query.eq('estado', true);
+    if (exportEstadoFilter === 'inactivo') query = query.eq('estado', false);
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data;
+  };
 
   const fetchEspecialistas = async () => {
     try {
@@ -54,13 +77,22 @@ export function EspecialistasPage() {
           <h1 className="text-3xl font-black text-secondary tracking-tight">Directorio de Personal</h1>
           <p className="text-gray-500 mt-1">Gestión de especialistas y colores de agenda</p>
         </div>
-        <button
-          onClick={() => { setEspecialistaToEdit(null); setIsDrawerOpen(true); }}
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold shadow-sm"
-        >
-          <Plus className="w-5 h-5" />
-          Nuevo Especialista
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar
+          </button>
+          <button
+            onClick={() => { setEspecialistaToEdit(null); setIsDrawerOpen(true); }}
+            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold shadow-sm"
+          >
+            <Plus className="w-5 h-5" />
+            Nuevo Especialista
+          </button>
+        </div>
       </div>
 
       <div className="max-w-md relative">
@@ -144,12 +176,35 @@ export function EspecialistasPage() {
         </div>
       </div>
 
-      <EspecialistaDrawer 
-        isOpen={isDrawerOpen} 
+      <EspecialistaDrawer
+        isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onSuccess={fetchEspecialistas}
         especialista={especialistaToEdit}
       />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => { setIsExportOpen(false); setExportEstadoFilter(''); }}
+        title="Exportar Especialistas"
+        columns={especialistaCsvColumns}
+        fetchData={fetchExportEspecialistas}
+        filename={`especialistas_${new Date().toISOString().split('T')[0]}`}
+        onFiltersChanged={exportFilterTrigger}
+      >
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Estado</label>
+          <select
+            value={exportEstadoFilter}
+            onChange={(e) => { setExportEstadoFilter(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none"
+          >
+            <option value="">Todos</option>
+            <option value="activo">Solo activos</option>
+            <option value="inactivo">Solo inactivos</option>
+          </select>
+        </div>
+      </ExportModal>
     </div>
   );
 }

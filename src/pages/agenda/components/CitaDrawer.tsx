@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle, Plus } from 'lucide-react';
+import { X, Search, AlertTriangle, Plus, CalendarDays, Clock } from 'lucide-react';
 import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { citaSchema, type CitaFormValues } from '../schemas/citaSchema';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import type { CitaList } from '../AgendaPage';
 
 interface PacienteMin {
@@ -376,28 +378,63 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               {errors.podologo_id && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.podologo_id.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-5 pt-2">
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              {/* Fecha */}
               <div>
-                <label className="block text-sm font-bold text-[#004975] mb-2">Fecha Exacta <span className="text-red-500">*</span></label>
-                <input 
-                  type="date"
-                  className={`w-full border rounded-xl p-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#00C288] outline-none font-medium transition-colors shadow-sm ${errors.fecha_cita ? 'border-red-500' : 'border-gray-200'}`}
-                  {...register('fecha_cita')}
-                />
+                <label className="block text-sm font-bold text-[#004975] mb-2">Fecha <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <CalendarDays className="w-4 h-4 text-[#00C288] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="date"
+                    className={`w-full border rounded-xl py-3 pl-10 pr-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#00C288] outline-none font-medium transition-colors shadow-sm ${errors.fecha_cita ? 'border-red-500' : 'border-gray-200'}`}
+                    {...register('fecha_cita')}
+                  />
+                </div>
+                {/* Hint: day name */}
+                {watchedFechaCita && (() => {
+                  const [y, m, d] = watchedFechaCita.split('-').map(Number);
+                  const dateObj = new Date(y, m - 1, d);
+                  const todayStr = format(new Date(), 'yyyy-MM-dd');
+                  const isToday = watchedFechaCita === todayStr;
+                  return (
+                    <p className={`text-[11px] font-bold mt-1.5 px-1 ${isToday ? 'text-[#00C288]' : 'text-gray-400'}`}>
+                      {isToday ? '● Hoy, ' : ''}{format(dateObj, "EEEE d 'de' MMMM", { locale: es })}
+                    </p>
+                  );
+                })()}
                 {errors.fecha_cita && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.fecha_cita.message}</p>}
               </div>
 
+              {/* Hora */}
               <div>
-                <label className="block text-sm font-bold text-[#004975] mb-2">Hora (Inicio) <span className="text-red-500">*</span></label>
-                <select 
-                  className={`w-full border rounded-xl p-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#00C288] outline-none font-medium transition-colors shadow-sm cursor-pointer ${errors.hora_cita ? 'border-red-500' : 'border-gray-200'}`}
-                  {...register('hora_cita')}
-                >
-                  <option value="">Seleccione...</option>
-                  {TIME_OPTIONS.map(time => (
-                    <option key={time.value} value={time.value}>{time.label}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-bold text-[#004975] mb-2">Hora <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Clock className="w-4 h-4 text-[#00C288] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <select
+                    className={`w-full appearance-none border rounded-xl py-3 pl-10 pr-8 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#00C288] outline-none font-medium transition-colors shadow-sm cursor-pointer ${errors.hora_cita ? 'border-red-500' : 'border-gray-200'}`}
+                    {...register('hora_cita')}
+                  >
+                    <option value="">Seleccione...</option>
+                    <optgroup label="☀️ Mañana">
+                      {TIME_OPTIONS.filter(t => parseInt(t.value) < 12).map(time => (
+                        <option key={time.value} value={time.value}>{time.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🌤️ Tarde">
+                      {TIME_OPTIONS.filter(t => { const h = parseInt(t.value); return h >= 12 && h < 18; }).map(time => (
+                        <option key={time.value} value={time.value}>{time.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🌙 Noche">
+                      {TIME_OPTIONS.filter(t => parseInt(t.value) >= 18).map(time => (
+                        <option key={time.value} value={time.value}>{time.label}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                    <span className="text-gray-400 text-xs">▼</span>
+                  </div>
+                </div>
                 {errors.hora_cita && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.hora_cita.message}</p>}
               </div>
             </div>

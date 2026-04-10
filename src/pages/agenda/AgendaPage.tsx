@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search, Download } from 'lucide-react';
 import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { supabase } from '../../lib/supabase';
-import { format, addDays, subDays } from 'date-fns';
+import { format, addDays, subDays, isSameDay, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
+import { ExportModal } from '../../components/ExportModal';
 import { CLINIC_INFO } from '../../config/clinicData';
+import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface CitaList {
   id: string;
@@ -55,6 +57,42 @@ export function AgendaPage() {
   const [selectedEspecialista, setSelectedEspecialista] = useState('');
   const [selectedEstado, setSelectedEstado] = useState('');
   const [isGlobalSearch, setIsGlobalSearch] = useState(false);
+
+  // Export state
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportDesde, setExportDesde] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [exportHasta, setExportHasta] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [exportEspecialista, setExportEspecialista] = useState('');
+  const [exportEstado, setExportEstado] = useState('');
+  const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const citaCsvColumns: CsvColumn<CitaList>[] = [
+    { key: 'fecha_cita', header: 'Fecha' },
+    { key: 'hora_cita', header: 'Hora', format: (r) => formatearHora(r.hora_cita) },
+    { key: '', header: 'Paciente', format: (r) => `${r.pacientes.nombres} ${r.pacientes.apellidos}` },
+    { key: 'pacientes.numero_documento', header: 'Documento' },
+    { key: 'pacientes.telefono', header: 'Teléfono' },
+    { key: 'motivo', header: 'Motivo' },
+    { key: '', header: 'Especialista', format: (r) => r.podologos?.nombres || '' },
+    { key: 'estado', header: 'Estado' },
+  ];
+
+  const fetchExportCitas = async (): Promise<CitaList[]> => {
+    let query = supabase
+      .from('citas')
+      .select(`*, pacientes (nombres, apellidos, telefono, numero_documento), podologos (nombres, color_etiqueta)`)
+      .gte('fecha_cita', exportDesde)
+      .lte('fecha_cita', exportHasta)
+      .order('fecha_cita')
+      .order('hora_cita');
+
+    if (exportEspecialista) query = query.eq('podologo_id', exportEspecialista);
+    if (exportEstado) query = query.eq('estado', exportEstado);
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data as unknown as CitaList[];
+  };
 
   useEffect(() => {
     const fetchPodologos = async () => {
@@ -184,47 +222,75 @@ ${CLINIC_INFO.mensaje_pie}
       <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-6">
         
         {/* Date Navigator */}
-        <div className="flex w-full md:w-auto items-center justify-between md:justify-start gap-3 bg-gray-50/80 rounded-2xl p-2 border border-gray-100">
-          <button 
-            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group"
-            title="Día Anterior"
+        <div className="flex w-full md:w-auto md:min-w-0 md:flex-1 items-center gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 overflow-hidden">
+          <button
+            onClick={() => setSelectedDate(subDays(selectedDate, 7))}
+            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+            title="Semana Anterior"
           >
             <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
           </button>
-          
-          <div className="px-6 py-2.5 flex items-center justify-center gap-4 bg-white shadow-sm rounded-xl border border-gray-200 min-w-[200px]">
-            <CalendarIcon className="w-6 h-6 text-[#00C288]" />
-            <div className="flex flex-col items-start leading-tight">
-              <span className="text-[15px] font-black text-[#004975] uppercase tracking-wider">
-                {format(selectedDate, "EEEE d", { locale: es })}
-              </span>
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                 {format(selectedDate, "MMMM, yyyy", { locale: es })}
-              </span>
-            </div>
+
+          <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide">
+            {Array.from({ length: 7 }, (_, i) => {
+              const day = addDays(startOfDay(selectedDate), i - 3);
+              const isSelected = isSameDay(day, selectedDate);
+              const isToday = isSameDay(day, new Date());
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => setSelectedDate(day)}
+                  className={`flex flex-col items-center flex-1 py-2 rounded-xl border transition-all min-w-[60px] ${
+                    isSelected
+                      ? 'bg-[#00C288] text-white border-[#00C288] shadow-md shadow-[#00C288]/20 scale-105'
+                      : isToday
+                        ? 'bg-white text-[#004975] border-[#00C288]/40 hover:border-[#00C288] hover:shadow-sm'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  }`}
+                >
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/80' : isToday ? 'text-[#00C288]' : 'text-gray-400'}`}>
+                    {format(day, "EEE", { locale: es })}
+                  </span>
+                  <span className={`text-lg font-black leading-tight ${isSelected ? 'text-white' : ''}`}>
+                    {format(day, "d")}
+                  </span>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                    {format(day, "MMM", { locale: es })}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <button 
-            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group"
-            title="Día Siguiente"
+          <button
+            onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+            title="Semana Siguiente"
           >
             <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
 
         {/* Global Actions */}
-        <button 
-          onClick={() => {
-            setCitaEnEdicion(null);
-            setIsDrawerOpen(true);
-          }}
-          className="w-full md:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
-        >
-          <Plus className="w-5 h-5" />
-          NUEVO TURNO
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="p-3.5 bg-white hover:bg-gray-50 text-[#004975] rounded-xl border border-gray-200 shadow-sm transition-colors"
+            title="Exportar Agenda"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              setCitaEnEdicion(null);
+              setIsDrawerOpen(true);
+            }}
+            className="w-full md:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
+          >
+            <Plus className="w-5 h-5" />
+            NUEVO TURNO
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -572,6 +638,50 @@ ${CLINIC_INFO.mensaje_pie}
           </div>
         </div>
       )}
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        title="Exportar Agenda"
+        columns={citaCsvColumns}
+        fetchData={fetchExportCitas}
+        filename={`agenda_${exportDesde}_${exportHasta}`}
+        onFiltersChanged={exportFilterTrigger}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-[#004975] mb-1.5">Desde</label>
+            <input type="date" value={exportDesde} onChange={(e) => { setExportDesde(e.target.value); setExportFilterTrigger(n => n + 1); }}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#004975] mb-1.5">Hasta</label>
+            <input type="date" value={exportHasta} onChange={(e) => { setExportHasta(e.target.value); setExportFilterTrigger(n => n + 1); }}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Especialista</label>
+          <select value={exportEspecialista} onChange={(e) => { setExportEspecialista(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none">
+            <option value="">Todos</option>
+            {podologos.map(p => <option key={p.id} value={p.id}>{p.nombres}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Estado</label>
+          <select value={exportEstado} onChange={(e) => { setExportEstado(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none">
+            <option value="">Todos</option>
+            <option value="Programada">Programada</option>
+            <option value="Confirmada">Confirmada</option>
+            <option value="En Sala de Espera">En Sala de Espera</option>
+            <option value="Atendida">Atendida</option>
+            <option value="Cancelada">Cancelada</option>
+            <option value="No Asistió">No Asistió</option>
+          </select>
+        </div>
+      </ExportModal>
     </div>
   );
 }
