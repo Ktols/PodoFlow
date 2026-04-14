@@ -17,6 +17,8 @@ interface CitaCaja {
   hora_cita: string;
   motivo: string;
   estado: string;
+  adelanto?: number;
+  adelanto_metodo_pago?: string | null;
   pacientes: {
     nombres: string;
     apellidos: string;

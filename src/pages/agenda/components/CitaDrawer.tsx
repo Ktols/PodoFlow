@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle, Plus, CalendarDays, Clock } from 'lucide-react';
+import { X, Search, AlertTriangle, Plus, CalendarDays, Clock, DollarSign } from 'lucide-react';
 import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -117,6 +117,8 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           fecha_cita: citaEnEdicion.fecha_cita,
           hora_cita: citaEnEdicion.hora_cita.substring(0, 5),
           motivo: citaEnEdicion.motivo,
+          adelanto: (citaEnEdicion as any).adelanto ? String((citaEnEdicion as any).adelanto) : '',
+          adelanto_metodo_pago: (citaEnEdicion as any).adelanto_metodo_pago || '',
         });
 
         // Add to pacientes mock to resolve selected state instantly
@@ -136,6 +138,8 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           fecha_cita: localDate,
           hora_cita: getSmartInitialTime(localDate),
           motivo: '',
+          adelanto: '',
+          adelanto_metodo_pago: '',
         });
         setPacientes([]);
       }
@@ -225,23 +229,29 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
       }
 
       if (citaEnEdicion) {
+        const adelantoVal = parseFloat(data.adelanto || '0') || 0;
         const { error } = await supabase.from('citas').update({
           podologo_id: data.podologo_id,
           fecha_cita: data.fecha_cita,
           hora_cita: data.hora_cita,
-          motivo: data.motivo
+          motivo: data.motivo,
+          adelanto: adelantoVal,
+          adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
         }).eq('id', citaEnEdicion.id);
 
         if (error) throw error;
         toast.success('Turno actualizado de manera exitosa');
       } else {
+        const adelantoVal = parseFloat(data.adelanto || '0') || 0;
         const { error } = await supabase.from('citas').insert([{
           paciente_id: data.paciente_id,
           podologo_id: data.podologo_id,
           fecha_cita: data.fecha_cita,
           hora_cita: data.hora_cita,
           motivo: data.motivo,
-          estado: 'Programada'
+          estado: 'Programada',
+          adelanto: adelantoVal,
+          adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
         }]);
 
         if (error) throw error;
@@ -449,7 +459,43 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               />
               {errors.motivo && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.motivo.message}</p>}
             </div>
-            
+
+            {/* Pago Adelantado (opcional) */}
+            <div className="bg-[#00C288]/5 rounded-xl border border-[#00C288]/20 p-4 space-y-3">
+              <label className="block text-sm font-bold text-[#004975] flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-[#00C288]" />
+                Pago Adelantado (opcional)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Monto (S/)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] tabular-nums shadow-sm"
+                    {...register('adelanto')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Método de Pago</label>
+                  <select
+                    className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] shadow-sm"
+                    {...register('adelanto_metodo_pago')}
+                  >
+                    <option value="">Seleccione...</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Yape">Yape</option>
+                    <option value="Plin">Plin</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Transferencia</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-[10px] font-bold text-[#00C288]/70">Si el paciente realiza un pago por adelantado, se descontará del total al momento del cobro.</p>
+            </div>
+
           </form>
         </div>
         

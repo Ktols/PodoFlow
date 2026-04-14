@@ -29,6 +29,8 @@ export interface CitaList {
     nombres: string;
     color_etiqueta: string;
   };
+  adelanto?: number;
+  adelanto_metodo_pago?: string | null;
 }
 
 const ESTADOS_MAP: Record<string, { color: string, border: string }> = {
@@ -219,10 +221,10 @@ ${CLINIC_INFO.mensaje_pie}
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
       
       {/* Header Calendario Activo */}
-      <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-4 lg:p-6 flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-6">
         
         {/* Date Navigator */}
-        <div className="flex flex-col w-full md:w-auto md:min-w-0 md:flex-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 overflow-hidden gap-2">
+        <div className="flex flex-col w-full lg:w-auto lg:min-w-0 lg:flex-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 overflow-hidden gap-2">
           {/* Month selector */}
           <div className="flex items-center justify-between px-1">
             <button
@@ -274,7 +276,7 @@ ${CLINIC_INFO.mensaje_pie}
                   <button
                     key={day.toISOString()}
                     onClick={() => setSelectedDate(day)}
-                    className={`flex flex-col items-center flex-1 py-2 rounded-xl border transition-all min-w-[60px] ${
+                    className={`flex flex-col items-center flex-1 py-2 rounded-xl border transition-all min-w-[44px] ${
                       isSelected
                         ? 'bg-[#00C288] text-white border-[#00C288] shadow-md shadow-[#00C288]/20 scale-105'
                         : isToday
@@ -320,7 +322,7 @@ ${CLINIC_INFO.mensaje_pie}
               setCitaEnEdicion(null);
               setIsDrawerOpen(true);
             }}
-            className="w-full md:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
+            className="w-full lg:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
           >
             <Plus className="w-5 h-5" />
             NUEVO TURNO
@@ -487,13 +489,13 @@ ${CLINIC_INFO.mensaje_pie}
                 return (
                   <div 
                     key={cita.id} 
-                    className={`rounded-2xl border shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] p-5 md:p-6 hover:shadow-lg transition-all relative overflow-hidden flex flex-col md:flex-row gap-5 md:gap-8 items-start md:items-center ${esEstadoFinal ? 'opacity-75 bg-gray-50 ' + style.border : esTurnoFantasma ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : isPasada ? ('opacity-60 bg-gray-50 grayscale-[0.3] ' + style.border) : ('bg-white ' + style.border)} ${enCurso ? 'ring-2 ring-[#00C288] ring-offset-2' : ''}`}
+                    className={`rounded-2xl border shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] p-5 lg:p-6 hover:shadow-lg transition-all relative overflow-hidden flex flex-col xl:flex-row gap-4 xl:gap-8 items-start xl:items-center ${esEstadoFinal ? 'opacity-75 bg-gray-50 ' + style.border : esTurnoFantasma ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : isPasada ? ('opacity-60 bg-gray-50 grayscale-[0.3] ' + style.border) : ('bg-white ' + style.border)} ${enCurso ? 'ring-2 ring-[#00C288] ring-offset-2' : ''}`}
                   >
                 {/* Timeline Color bar */}
                 <div className={`absolute left-0 inset-y-0 w-2.5 ${style.color.split(' ')[0]}`} />
 
                 {/* Hora Analógica */}
-                <div className="flex flex-row items-center gap-3 ml-3 md:w-36 shrink-0">
+                <div className="flex flex-row items-center gap-3 ml-3 xl:w-36 shrink-0">
                   <div className={`p-2.5 rounded-xl ${style.color}`}>
                     <Clock className="w-6 h-6 border-transparent" />
                   </div>
@@ -532,11 +534,11 @@ ${CLINIC_INFO.mensaje_pie}
                   <p className="text-sm font-bold text-gray-500 pl-7 truncate pr-4">{cita.motivo}</p>
                   
                   {cita.podologos && (
-                    <div className="flex items-center gap-1.5 mt-3 pl-7">
-                      <div 
+                    <div className="flex items-center gap-1.5 mt-3 pl-7 flex-wrap">
+                      <div
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm"
-                        style={{ 
-                          backgroundColor: `${cita.podologos.color_etiqueta}12`, 
+                        style={{
+                          backgroundColor: `${cita.podologos.color_etiqueta}12`,
                           color: cita.podologos.color_etiqueta,
                           borderColor: `${cita.podologos.color_etiqueta}30`
                         }}
@@ -544,6 +546,12 @@ ${CLINIC_INFO.mensaje_pie}
                         <Stethoscope className="w-4 h-4" />
                         <span>Atiende: {cita.podologos.nombres}</span>
                       </div>
+                      {Number(cita.adelanto || 0) > 0 && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm bg-[#00C288]/10 text-[#00C288] border-[#00C288]/20">
+                          Adelanto: S/ {Number(cita.adelanto).toFixed(2)}
+                          {cita.adelanto_metodo_pago && <span className="text-[9px] font-bold text-[#004975]/50 normal-case">({cita.adelanto_metodo_pago})</span>}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -593,7 +601,7 @@ ${CLINIC_INFO.mensaje_pie}
                 </div>
 
                 {/* Native Dropdown Fases */}
-                <div className="relative shrink-0 w-full md:w-56" onClick={(e) => e.stopPropagation()}>
+                <div className="relative shrink-0 w-full xl:w-56" onClick={(e) => e.stopPropagation()}>
                   <div className={`relative rounded-xl border shadow-sm ${style.color} ${style.border} ${!esEstadoFinal ? 'transition-all hover:scale-[1.02]' : 'opacity-80'}`}>
                     <select
                       value={cita.estado}

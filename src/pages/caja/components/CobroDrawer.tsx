@@ -14,6 +14,8 @@ interface CitaParaCobro {
   paciente_id: string;
   hora_cita: string;
   motivo: string;
+  adelanto?: number;
+  adelanto_metodo_pago?: string | null;
   pacientes: {
     nombres: string;
     apellidos: string;
@@ -185,10 +187,12 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     setIsSubmitting(true);
 
     try {
+      const adelantoNum = cita.adelanto ? Number(cita.adelanto) : 0;
+      const montoFinal = Math.max(0, parseFloat(montoTotal) - adelantoNum);
       const payload: Record<string, any> = {
         cita_id: cita.id,
         paciente_id: cita.paciente_id,
-        monto_total: parseFloat(montoTotal),
+        monto_total: montoFinal,
         metodo_pago: metodoPago,
         estado: 'Pagado',
         fecha_pago: new Date().toISOString(),
@@ -433,14 +437,29 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
         {/* Footer */}
         <div className="p-6 border-t border-gray-100 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
           {/* Summary Bar */}
-          {montoTotal && parseFloat(montoTotal) > 0 && (
-            <div className="flex items-center justify-between mb-4 p-3 bg-[#00C288]/5 rounded-xl border border-[#00C288]/10">
-              <span className="text-sm font-bold text-[#004975]">Total a cobrar:</span>
-              <span className="text-xl font-black text-[#00C288] tabular-nums">
-                S/ {parseFloat(montoTotal).toFixed(2)}
-              </span>
-            </div>
-          )}
+          {montoTotal && parseFloat(montoTotal) > 0 && (() => {
+            const montoNum = parseFloat(montoTotal);
+            const adelantoNum = cita?.adelanto ? Number(cita.adelanto) : 0;
+            const totalFinal = Math.max(0, montoNum - adelantoNum);
+            return (
+              <div className="mb-4 p-3 bg-[#00C288]/5 rounded-xl border border-[#00C288]/10 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-400">Monto servicios</span>
+                  <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {montoNum.toFixed(2)}</span>
+                </div>
+                {adelantoNum > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#00C288]">Adelanto pagado ({cita?.adelanto_metodo_pago})</span>
+                    <span className="text-sm font-bold text-[#00C288] tabular-nums">- S/ {adelantoNum.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-1.5 border-t border-[#00C288]/10">
+                  <span className="text-sm font-black text-[#004975]">Total a cobrar:</span>
+                  <span className="text-xl font-black text-[#00C288] tabular-nums">S/ {totalFinal.toFixed(2)}</span>
+                </div>
+              </div>
+            );
+          })()}
           <div className="flex justify-end gap-3">
             <button
               type="button"
