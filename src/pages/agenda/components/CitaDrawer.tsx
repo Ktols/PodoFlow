@@ -166,7 +166,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   useEffect(() => {
     const fetchPacientes = async () => {
       if (searchTerm.length < 2) {
-        setPacientes([]);
+        if (!selectedPacienteId) setPacientes([]);
         return;
       }
       setIsSearching(true);

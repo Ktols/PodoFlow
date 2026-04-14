@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search, Download } from 'lucide-react';
 import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { supabase } from '../../lib/supabase';
-import { format, addDays, subDays, isSameDay, startOfDay } from 'date-fns';
+import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
@@ -222,53 +222,88 @@ ${CLINIC_INFO.mensaje_pie}
       <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-6">
         
         {/* Date Navigator */}
-        <div className="flex w-full md:w-auto md:min-w-0 md:flex-1 items-center gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 overflow-hidden">
-          <button
-            onClick={() => setSelectedDate(subDays(selectedDate, 7))}
-            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
-            title="Semana Anterior"
-          >
-            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
-          </button>
-
-          <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide">
-            {Array.from({ length: 7 }, (_, i) => {
-              const day = addDays(startOfDay(selectedDate), i - 3);
-              const isSelected = isSameDay(day, selectedDate);
-              const isToday = isSameDay(day, new Date());
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => setSelectedDate(day)}
-                  className={`flex flex-col items-center flex-1 py-2 rounded-xl border transition-all min-w-[60px] ${
-                    isSelected
-                      ? 'bg-[#00C288] text-white border-[#00C288] shadow-md shadow-[#00C288]/20 scale-105'
-                      : isToday
-                        ? 'bg-white text-[#004975] border-[#00C288]/40 hover:border-[#00C288] hover:shadow-sm'
-                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                  }`}
-                >
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/80' : isToday ? 'text-[#00C288]' : 'text-gray-400'}`}>
-                    {format(day, "EEE", { locale: es })}
-                  </span>
-                  <span className={`text-lg font-black leading-tight ${isSelected ? 'text-white' : ''}`}>
-                    {format(day, "d")}
-                  </span>
-                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
-                    {format(day, "MMM", { locale: es })}
-                  </span>
-                </button>
-              );
-            })}
+        <div className="flex flex-col w-full md:w-auto md:min-w-0 md:flex-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 overflow-hidden gap-2">
+          {/* Month selector */}
+          <div className="flex items-center justify-between px-1">
+            <button
+              onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
+              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
+              title="Mes Anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-black text-[#004975] capitalize tracking-wide">
+              {format(selectedDate, "MMMM yyyy", { locale: es })}
+            </span>
+            <button
+              onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
+              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
+              title="Mes Siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
-          <button
-            onClick={() => setSelectedDate(addDays(selectedDate, 7))}
-            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
-            title="Semana Siguiente"
-          >
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
-          </button>
+          {/* Hoy shortcut */}
+          {!isSameDay(selectedDate, new Date()) && (
+            <button
+              onClick={() => setSelectedDate(new Date())}
+              className="self-center text-[11px] font-black text-[#00C288] uppercase tracking-wider bg-[#00C288]/10 hover:bg-[#00C288]/20 px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <CalendarIcon className="w-3.5 h-3.5" />
+              Ir a hoy
+            </button>
+          )}
+
+          {/* Week day strip */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedDate(subDays(selectedDate, 7))}
+              className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+              title="Semana Anterior"
+            >
+              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+
+            <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide">
+              {Array.from({ length: 7 }, (_, i) => {
+                const day = addDays(startOfDay(selectedDate), i - 3);
+                const isSelected = isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, new Date());
+                return (
+                  <button
+                    key={day.toISOString()}
+                    onClick={() => setSelectedDate(day)}
+                    className={`flex flex-col items-center flex-1 py-2 rounded-xl border transition-all min-w-[60px] ${
+                      isSelected
+                        ? 'bg-[#00C288] text-white border-[#00C288] shadow-md shadow-[#00C288]/20 scale-105'
+                        : isToday
+                          ? 'bg-white text-[#004975] border-[#00C288]/40 hover:border-[#00C288] hover:shadow-sm'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/80' : isToday ? 'text-[#00C288]' : 'text-gray-400'}`}>
+                      {format(day, "EEE", { locale: es })}
+                    </span>
+                    <span className={`text-lg font-black leading-tight ${isSelected ? 'text-white' : ''}`}>
+                      {format(day, "d")}
+                    </span>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                      {format(day, "MMM", { locale: es })}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+              className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+              title="Semana Siguiente"
+            >
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
         </div>
 
         {/* Global Actions */}
