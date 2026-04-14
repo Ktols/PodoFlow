@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Receipt, Tag, Package } from 'lucide-react';
+import { Receipt, Tag, Package, ShoppingCart } from 'lucide-react';
 import { ListaPreciosTab } from './components/ListaPreciosTab';
 import { CobrosPendientesTab } from './components/CobrosPendientesTab';
 import { ProductosTab } from './components/ProductosTab';
+import { VentasTab } from './components/VentasTab';
 
-type TabKey = 'cobros' | 'precios' | 'productos';
+type TabKey = 'cobros' | 'precios' | 'productos' | 'ventas';
 
 interface TabConfig {
   key: TabKey;
@@ -16,6 +17,7 @@ const TABS: TabConfig[] = [
   { key: 'cobros', label: 'Cobros Pendientes', icon: <Receipt className="w-4 h-4" /> },
   { key: 'precios', label: 'Lista de Precios', icon: <Tag className="w-4 h-4" /> },
   { key: 'productos', label: 'Productos', icon: <Package className="w-4 h-4" /> },
+  { key: 'ventas', label: 'Ventas', icon: <ShoppingCart className="w-4 h-4" /> },
 ];
 
 export function CajaPage() {
@@ -64,6 +66,10 @@ export function CajaPage() {
 
         {activeTab === 'productos' && (
           <ProductosTab />
+        )}
+
+        {activeTab === 'ventas' && (
+          <VentasTab />
         )}
       </div>
     </div>

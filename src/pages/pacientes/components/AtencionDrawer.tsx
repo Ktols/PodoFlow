@@ -1,4 +1,4 @@
-import { X, ImagePlus, XCircle } from 'lucide-react';
+import { X, ImagePlus, XCircle, Package } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,6 +26,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   const [podologosList, setPodologosList] = useState<any[]>([]);
   const [serviciosList, setServiciosList] = useState<{id: string, nombre: string, precio_base: number}[]>([]);
+  const [productosList, setProductosList] = useState<{id: string, nombre: string}[]>([]);
 
   useEffect(() => {
     const fetchPodologos = async () => {
@@ -36,8 +37,13 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
       const { data } = await supabase.from('servicios').select('id, nombre, precio_base').eq('estado', true).order('nombre');
       if (data) setServiciosList(data);
     };
+    const fetchProductos = async () => {
+      const { data } = await supabase.from('productos').select('id, nombre').eq('estado', true).order('nombre');
+      if (data) setProductosList(data);
+    };
     fetchPodologos();
     fetchServicios();
+    fetchProductos();
   }, []);
 
   useEffect(() => {
@@ -51,6 +57,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
           evaluacion_piel: atencion.evaluacion_piel || [],
           evaluacion_unas: atencion.evaluacion_unas || [],
           tratamientos_realizados: atencion.tratamientos_realizados || [],
+          productos_usados: atencion.productos_usados || [],
           podologo_id: atencion.podologo_id || '',
         });
       } else {
@@ -62,6 +69,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
           evaluacion_piel: [],
           evaluacion_unas: [],
           tratamientos_realizados: [],
+          productos_usados: [],
           podologo_id: '',
         });
         
@@ -122,6 +130,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
         evaluacion_piel: data.evaluacion_piel || [],
         evaluacion_unas: data.evaluacion_unas || [],
         tratamientos_realizados: data.tratamientos_realizados,
+        productos_usados: data.productos_usados || [],
         podologo_id: data.podologo_id,
       };
 
@@ -245,6 +254,28 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
                 </div>
               )}
               {errors.tratamientos_realizados && <p className="text-red-500 text-xs mt-2">{errors.tratamientos_realizados.message}</p>}
+            </div>
+
+            {/* Productos Usados */}
+            <div className="bg-white p-4 md:p-5 rounded-xl border border-gray-200 shadow-sm">
+              <label className="block text-sm font-bold text-secondary mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#00C288]" />
+                Productos Utilizados
+              </label>
+              {productosList.length === 0 ? (
+                <p className="text-sm font-bold text-gray-400 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center">
+                  No hay productos activos. Cree uno desde Caja → Productos.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
+                  {productosList.map(prod => (
+                    <label key={prod.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors group">
+                      <input type="checkbox" value={prod.nombre} className="w-4 h-4 rounded text-[#00C288] focus:ring-[#00C288] border-gray-300" {...register('productos_usados')} />
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-[#004975] transition-colors">{prod.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>

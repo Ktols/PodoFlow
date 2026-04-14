@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer } from 'lucide-react';
+import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer, ShoppingCart, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { type Paciente } from './PacientesPage';
 import { AtencionDrawer } from './components/AtencionDrawer';
@@ -18,6 +18,7 @@ export interface Atencion {
   evaluacion_piel?: string[];
   evaluacion_unas?: string[];
   tratamientos_realizados?: string[];
+  productos_usados?: string[];
   podologo_id?: string;
   podologos?: {
     id: string;
@@ -39,6 +40,9 @@ export function HistoriaClinicaPage() {
   const [originCitaId, setOriginCitaId] = useState<string | null>(null);
   const [selectedAtencion, setSelectedAtencion] = useState<Atencion | null>(null);
   const [selectedImage, setSelectedImage] = useState<{url: string, atencion: Atencion} | null>(null);
+  const [activeTab, setActiveTab] = useState<'historial' | 'compras'>('historial');
+  const [ventas, setVentas] = useState<any[]>([]);
+  const [ventasLoading, setVentasLoading] = useState(false);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -85,6 +89,24 @@ export function HistoriaClinicaPage() {
   useEffect(() => {
     fetchHistoria();
   }, [id]);
+
+  const fetchVentas = async () => {
+    if (!id) return;
+    setVentasLoading(true);
+    const { data } = await supabase
+      .from('ventas')
+      .select('*')
+      .eq('paciente_id', id)
+      .order('created_at', { ascending: false });
+    if (data) setVentas(data);
+    setVentasLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'compras' && ventas.length === 0 && !ventasLoading) {
+      fetchVentas();
+    }
+  }, [activeTab]);
 
   if (isLoading) {
     return (
@@ -235,22 +257,53 @@ export function HistoriaClinicaPage() {
         )}
       </div>
 
-      {/* Evolución (Timeline) */}
+      {/* Tabs: Historial / Compras */}
       <div className="mt-8">
-        <h2 className="text-xl font-bold text-secondary mb-6 flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-6 print:hidden">
+          <button
+            onClick={() => setActiveTab('historial')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all ${
+              activeTab === 'historial'
+                ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20'
+                : 'text-gray-400 hover:text-[#004975] hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Historial
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'historial' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+              {atenciones.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('compras')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all ${
+              activeTab === 'compras'
+                ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20'
+                : 'text-gray-400 hover:text-[#004975] hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Compras
+            {ventas.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'compras' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+                {ventas.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Print-only title */}
+        <h2 className="hidden print:flex text-xl font-bold text-secondary mb-6 items-center gap-2">
           <Clock className="w-5 h-5 text-gray-400" />
-          Historial de Evolución 
-          <span className="text-sm font-bold text-secondary px-2 py-0.5 bg-blue-50 border border-blue-100 rounded-full ml-2">
-            {atenciones.length} vis.
-          </span>
+          Historial de Evolución
         </h2>
 
-        {atenciones.length === 0 ? (
+        {activeTab === 'historial' && atenciones.length === 0 ? (
           <div className="text-center p-12 bg-white rounded-xl border border-gray-100 border-dashed print:border-none print:p-2">
             <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3 print:hidden" />
             <p className="text-gray-500 font-medium">Aún no hay atenciones registradas.</p>
           </div>
-        ) : (
+        ) : activeTab === 'historial' ? (
           <div className="relative border-l-2 border-gray-100 ml-3 md:ml-4 space-y-8 print:border-l-0 print:ml-0 print:space-y-4">
             {atenciones.map((atencion) => (
               <div key={atencion.id} className="relative pl-6 md:pl-8 group print:pl-0">
@@ -328,6 +381,19 @@ export function HistoriaClinicaPage() {
                       )}
                     </div>
 
+                    {atencion.productos_usados && atencion.productos_usados.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Productos Utilizados</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {atencion.productos_usados.map(item => (
+                            <span key={item} className="bg-[#00C288]/10 text-[#004975] border border-[#00C288]/20 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {atencion.indicaciones && (
                       <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 mt-4 print:color-adjust-exact">
                         <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5">Indicaciones al Paciente (Casa)</h4>
@@ -362,7 +428,76 @@ export function HistoriaClinicaPage() {
               </div>
             ))}
           </div>
-        )}
+        ) : activeTab === 'compras' ? (
+          ventasLoading ? (
+            <div className="flex justify-center py-16">
+              <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00C288] rounded-full animate-spin" />
+            </div>
+          ) : ventas.length === 0 ? (
+            <div className="text-center p-12 bg-white rounded-xl border border-gray-100 border-dashed">
+              <ShoppingCart className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">Este paciente no tiene compras registradas.</p>
+              <p className="text-gray-400 text-sm mt-1">Las ventas realizadas desde Caja → Ventas aparecerán aquí.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Resumen */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total Compras</span>
+                  <p className="text-xl font-black text-[#004975] tabular-nums mt-1">{ventas.length}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total Gastado</span>
+                  <p className="text-xl font-black text-[#00C288] tabular-nums mt-1">S/ {ventas.reduce((s: number, v: any) => s + v.total, 0).toFixed(2)}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Productos Comprados</span>
+                  <p className="text-xl font-black text-[#004975] tabular-nums mt-1">{ventas.reduce((s: number, v: any) => s + (v.items || []).reduce((a: number, i: any) => a + i.cantidad, 0), 0)}</p>
+                </div>
+              </div>
+
+              {/* Lista de compras */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Fecha</th>
+                      <th className="text-left px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Productos</th>
+                      <th className="text-center px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Método</th>
+                      <th className="text-right px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ventas.map((venta: any, index: number) => (
+                      <tr key={venta.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                        <td className="px-5 py-3.5">
+                          <p className="font-bold text-[#004975] text-sm">{format(new Date(venta.created_at), "d MMM yyyy", { locale: es })}</p>
+                          <p className="text-[11px] font-bold text-gray-400">{format(new Date(venta.created_at), "hh:mm a")}</p>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex flex-wrap gap-1">
+                            {(venta.items || []).map((item: any, i: number) => (
+                              <span key={i} className="bg-[#00C288]/10 text-[#004975] border border-[#00C288]/20 px-2 py-0.5 rounded text-[11px] font-bold">
+                                <Package className="w-3 h-3 inline mr-1" />{item.nombre} ×{item.cantidad}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-600">{venta.metodo_pago}</span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <span className="font-black text-[#004975] tabular-nums">S/ {Number(venta.total).toFixed(2)}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : null}
       </div>
 
       {paciente && (
