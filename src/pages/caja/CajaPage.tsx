@@ -1,11 +1,13 @@
-import { useState } from 'react';
 import { Receipt, Tag, Package, ShoppingCart } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { ListaPreciosTab } from './components/ListaPreciosTab';
 import { CobrosPendientesTab } from './components/CobrosPendientesTab';
 import { ProductosTab } from './components/ProductosTab';
 import { VentasTab } from './components/VentasTab';
 
 type TabKey = 'cobros' | 'precios' | 'productos' | 'ventas';
+
+const VALID_TABS: TabKey[] = ['cobros', 'precios', 'productos', 'ventas'];
 
 interface TabConfig {
   key: TabKey;
@@ -21,11 +23,17 @@ const TABS: TabConfig[] = [
 ];
 
 export function CajaPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>('cobros');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as TabKey | null;
+  const activeTab: TabKey = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'cobros';
+
+  const handleTabChange = (tab: TabKey) => {
+    setSearchParams(tab === 'cobros' ? {} : { tab }, { replace: true });
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -40,7 +48,7 @@ export function CajaPage() {
           {TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`flex-1 md:flex-none flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 ${
                 activeTab === tab.key
                   ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20 scale-[1.02]'
