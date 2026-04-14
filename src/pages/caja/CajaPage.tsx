@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Receipt, Tag } from 'lucide-react';
+import { Receipt, Tag, Package } from 'lucide-react';
 import { ListaPreciosTab } from './components/ListaPreciosTab';
 import { CobrosPendientesTab } from './components/CobrosPendientesTab';
+import { ProductosTab } from './components/ProductosTab';
 
-type TabKey = 'cobros' | 'precios';
+type TabKey = 'cobros' | 'precios' | 'productos';
 
 interface TabConfig {
   key: TabKey;
@@ -14,6 +15,7 @@ interface TabConfig {
 const TABS: TabConfig[] = [
   { key: 'cobros', label: 'Cobros Pendientes', icon: <Receipt className="w-4 h-4" /> },
   { key: 'precios', label: 'Lista de Precios', icon: <Tag className="w-4 h-4" /> },
+  { key: 'productos', label: 'Productos', icon: <Package className="w-4 h-4" /> },
 ];
 
 export function CajaPage() {
@@ -58,6 +60,10 @@ export function CajaPage() {
 
         {activeTab === 'precios' && (
           <ListaPreciosTab />
+        )}
+
+        {activeTab === 'productos' && (
+          <ProductosTab />
         )}
       </div>
     </div>

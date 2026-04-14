@@ -552,9 +552,13 @@ export function CobrosPendientesTab() {
                   return (
                     <tr
                       key={cita.id}
-                      className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors group ${
+                      className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors group relative ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                      } ${isPagado ? 'opacity-70' : ''}`}
+                      } ${isPagado ? 'opacity-70' : ''} ${
+                        isPagado
+                          ? 'border-l-4 border-l-[#00C288]'
+                          : 'border-l-4 border-l-orange-400'
+                      }`}
                     >
                       {/* Hora */}
                       <td className="px-6 py-4">
