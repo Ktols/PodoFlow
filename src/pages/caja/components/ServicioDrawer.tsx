@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, DollarSign } from 'lucide-react';
+import { X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import type { Servicio } from './ListaPreciosTab';
@@ -149,10 +149,7 @@ export function ServicioDrawer({ isOpen, onClose, onSuccess, servicioEnEdicion }
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                  <span className="text-gray-400 font-black text-sm flex items-center gap-1">
-                    <DollarSign className="w-4 h-4" />
-                    S/
-                  </span>
+                  <span className="text-gray-400 font-black text-sm">S/</span>
                 </div>
                 <input
                   type="number"

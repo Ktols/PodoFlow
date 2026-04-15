@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search, Download } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search, Download, Gift } from 'lucide-react';
 import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { supabase } from '../../lib/supabase';
 import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay } from 'date-fns';
@@ -8,7 +8,7 @@ import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
 import { ExportModal } from '../../components/ExportModal';
-import { CLINIC_INFO } from '../../config/clinicData';
+import { CLINIC_INFO, SELLOS_PARA_GRATIS } from '../../config/clinicData';
 import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface CitaList {
@@ -24,6 +24,7 @@ export interface CitaList {
     apellidos: string;
     telefono: string | null;
     numero_documento: string | null;
+    sellos?: number;
   };
   podologos: {
     nombres: string;
@@ -115,7 +116,8 @@ export function AgendaPage() {
           nombres,
           apellidos,
           telefono,
-          numero_documento
+          numero_documento,
+          sellos
         ),
         podologos (
           nombres,
@@ -550,6 +552,12 @@ ${CLINIC_INFO.mensaje_pie}
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm bg-[#00C288]/10 text-[#00C288] border-[#00C288]/20">
                           Adelanto: S/ {Number(cita.adelanto).toFixed(2)}
                           {cita.adelanto_metodo_pago && <span className="text-[9px] font-bold text-[#004975]/50 normal-case">({cita.adelanto_metodo_pago})</span>}
+                        </div>
+                      )}
+                      {Number(cita.pacientes.sellos || 0) >= SELLOS_PARA_GRATIS && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm bg-gradient-to-r from-[#00C288] to-[#00ab78] text-white border-[#00C288] animate-pulse">
+                          <Gift className="w-3.5 h-3.5" />
+                          Visita Gratis Disponible
                         </div>
                       )}
                     </div>

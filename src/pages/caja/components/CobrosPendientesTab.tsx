@@ -168,6 +168,8 @@ export function CobrosPendientesTab() {
         hora_cita,
         motivo,
         estado,
+        adelanto,
+        adelanto_metodo_pago,
         pacientes (
           nombres,
           apellidos,

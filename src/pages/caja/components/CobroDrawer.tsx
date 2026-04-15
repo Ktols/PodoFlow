@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, DollarSign, CheckCircle2, User, Clock, CreditCard, Hash } from 'lucide-react';
+import { X, CheckCircle2, User, Clock, CreditCard, Hash, Gift } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { StampCard } from '../../../components/StampCard';
+import { SELLOS_PARA_GRATIS } from '../../../config/clinicData';
 
 interface ServicioActivo {
   id: string;
@@ -52,6 +54,9 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [heredadoDeMedico, setHeredadoDeMedico] = useState(false);
+  const [pacienteSellos, setPacienteSellos] = useState(0);
+  const [pacienteSellosCanjeados, setPacienteSellosCanjeados] = useState(0);
+  const [canjearVisitaGratis, setCanjearVisitaGratis] = useState(false);
 
   // Contador de aperturas: se incrementa cada vez que isOpen pasa a true.
   // Esto fuerza al useEffect a re-ejecutarse incluso si cita es el mismo objeto.
@@ -76,8 +81,22 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     setCodigoReferencia('');
     setErrors({});
     setHeredadoDeMedico(false);
+    setCanjearVisitaGratis(false);
+    setPacienteSellos(0);
+    setPacienteSellosCanjeados(0);
 
     const initDrawer = async () => {
+      // 0. Fetch sellos del paciente
+      const { data: pacienteData } = await supabase
+        .from('pacientes')
+        .select('sellos, sellos_canjeados')
+        .eq('id', cita.paciente_id)
+        .single();
+      if (pacienteData) {
+        setPacienteSellos(pacienteData.sellos || 0);
+        setPacienteSellosCanjeados(pacienteData.sellos_canjeados || 0);
+      }
+
       // 1. Fetch FRESCO de servicios activos (sin caché)
       const { data: serviciosData } = await supabase
         .from('servicios')
@@ -188,7 +207,9 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
 
     try {
       const adelantoNum = cita.adelanto ? Number(cita.adelanto) : 0;
-      const montoFinal = Math.max(0, parseFloat(montoTotal) - adelantoNum);
+      const montoServicios = parseFloat(montoTotal);
+      // Si canjea visita gratis: total = 0; si no: monto - adelanto
+      const montoFinal = canjearVisitaGratis ? 0 : Math.max(0, montoServicios - adelantoNum);
       const payload: Record<string, any> = {
         cita_id: cita.id,
         paciente_id: cita.paciente_id,
@@ -196,6 +217,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
         metodo_pago: metodoPago,
         estado: 'Pagado',
         fecha_pago: new Date().toISOString(),
+        visita_gratis: canjearVisitaGratis,
       };
       if (codigoReferencia.trim()) {
         payload.codigo_referencia = codigoReferencia.trim();
@@ -205,7 +227,21 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
 
       if (error) throw error;
 
-      toast.success('Pago registrado exitosamente');
+      // Actualizar sellos del paciente
+      if (canjearVisitaGratis) {
+        // Resetear sellos e incrementar canjeados
+        await supabase.from('pacientes').update({
+          sellos: 0,
+          sellos_canjeados: pacienteSellosCanjeados + 1,
+        }).eq('id', cita.paciente_id);
+      } else {
+        // Incrementar sellos en 1
+        await supabase.from('pacientes').update({
+          sellos: pacienteSellos + 1,
+        }).eq('id', cita.paciente_id);
+      }
+
+      toast.success(canjearVisitaGratis ? '🎁 Visita gratis canjeada exitosamente' : 'Pago registrado exitosamente');
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -282,6 +318,35 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
                 )}
               </div>
             </div>
+
+            {/* Loyalty Stamp Card + Redeem Toggle */}
+            <StampCard sellos={pacienteSellos} sellosCanjeados={pacienteSellosCanjeados} compact />
+            {pacienteSellos >= SELLOS_PARA_GRATIS && (
+              <button
+                type="button"
+                onClick={() => setCanjearVisitaGratis(!canjearVisitaGratis)}
+                className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
+                  canjearVisitaGratis
+                    ? 'bg-[#00C288] border-[#00C288] text-white shadow-lg shadow-[#00C288]/30'
+                    : 'bg-[#00C288]/5 border-[#00C288]/30 text-[#004975] hover:bg-[#00C288]/10'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Gift className={`w-6 h-6 ${canjearVisitaGratis ? 'text-white' : 'text-[#00C288]'}`} />
+                  <div className="text-left">
+                    <p className="font-black text-sm">
+                      {canjearVisitaGratis ? '✓ Canjeando visita gratis' : 'Canjear visita gratis'}
+                    </p>
+                    <p className={`text-[11px] font-bold ${canjearVisitaGratis ? 'text-white/80' : 'text-gray-500'}`}>
+                      Esta atención no se cobrará
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-10 h-6 rounded-full transition-colors ${canjearVisitaGratis ? 'bg-white/30' : 'bg-gray-200'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform mt-0.5 ${canjearVisitaGratis ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
+            )}
 
             {/* Servicios Selector */}
             <div>
@@ -361,10 +426,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                  <span className="text-gray-400 font-black text-sm flex items-center gap-1">
-                    <DollarSign className="w-4 h-4" />
-                    S/
-                  </span>
+                  <span className="text-gray-400 font-black text-sm">S/</span>
                 </div>
                 <input
                   type="number"
@@ -440,14 +502,20 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
           {montoTotal && parseFloat(montoTotal) > 0 && (() => {
             const montoNum = parseFloat(montoTotal);
             const adelantoNum = cita?.adelanto ? Number(cita.adelanto) : 0;
-            const totalFinal = Math.max(0, montoNum - adelantoNum);
+            const totalFinal = canjearVisitaGratis ? 0 : Math.max(0, montoNum - adelantoNum);
             return (
               <div className="mb-4 p-3 bg-[#00C288]/5 rounded-xl border border-[#00C288]/10 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-400">Monto servicios</span>
                   <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {montoNum.toFixed(2)}</span>
                 </div>
-                {adelantoNum > 0 && (
+                {canjearVisitaGratis && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#00C288]">🎁 Visita gratis (sellos canjeados)</span>
+                    <span className="text-sm font-bold text-[#00C288] tabular-nums">- S/ {montoNum.toFixed(2)}</span>
+                  </div>
+                )}
+                {!canjearVisitaGratis && adelantoNum > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[#00C288]">Adelanto pagado ({cita?.adelanto_metodo_pago})</span>
                     <span className="text-sm font-bold text-[#00C288] tabular-nums">- S/ {adelantoNum.toFixed(2)}</span>

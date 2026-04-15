@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Prin
 import { supabase } from '../../lib/supabase';
 import { type Paciente } from './PacientesPage';
 import { AtencionDrawer } from './components/AtencionDrawer';
+import { StampCard } from '../../components/StampCard';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -195,6 +196,11 @@ export function HistoriaClinicaPage() {
             Nueva Atención
           </button>
         </div>
+      </div>
+
+      {/* Loyalty Stamp Card */}
+      <div className="print:hidden">
+        <StampCard sellos={paciente.sellos || 0} sellosCanjeados={paciente.sellos_canjeados || 0} />
       </div>
 
       {/* Panel de Perfil Clínico / Antecedentes */}

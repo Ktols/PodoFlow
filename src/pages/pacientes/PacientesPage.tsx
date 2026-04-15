@@ -22,6 +22,8 @@ export interface Paciente {
   tratamiento_oncologico?: boolean;
   alergias_detalle?: string | null;
   sexo?: string | null;
+  sellos?: number;
+  sellos_canjeados?: number;
 }
 
 export function PacientesPage() {
