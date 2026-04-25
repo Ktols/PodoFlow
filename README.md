@@ -1,71 +1,50 @@
-# 🦶 PodoFlow — Clinical Management System
+# 🦶 PodoFlow — SaaS Clinical Management System
 
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=white)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
+[![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk&logoColor=white)](https://clerk.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Recharts](https://img.shields.io/badge/Analytics-Recharts-222222)](https://recharts.org/)
 
-**PodoFlow** es una plataforma SaaS de gestión clínica integral diseñada específicamente para centros podológicos. Optimiza el flujo operativo diario desde la programación inteligente de turnos hasta el registro de evoluciones clínicas, la administración de especialistas y la comunicación automatizada con pacientes vía WhatsApp.
+**PodoFlow** es una plataforma SaaS integral diseñada para redes de centros podológicos. Permite gestionar múltiples sedes, centralizar la información de pacientes y especialistas, y analizar el rendimiento operativo a través de tableros inteligentes.
 
-> **Estado actual:** En desarrollo activo · MVP funcional con módulos de Agenda, Pacientes, Historia Clínica y Especialistas operativos.
+> **Estado actual:** SaaS Multi-sucursales operativo con autenticación Clerk y RBAC dinámico.
 
 ---
 
 ## 📑 Tabla de Contenidos
-
 - [Características](#-características)
 - [Arquitectura y Stack Tecnológico](#-arquitectura-y-stack-tecnológico)
-- [Requisitos Previos](#-requisitos-previos)
+- [Gestión SaaS y Roles](#-gestión-saas-y-roles)
 - [Instalación](#-instalación)
-- [Variables de Entorno](#-variables-de-entorno)
-- [Base de Datos (Supabase)](#-base-de-datos-supabase)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Módulos y Funcionalidades](#-módulos-y-funcionalidades)
-- [Reglas de Negocio](#-reglas-de-negocio)
-- [Guía de Contribución](#-guía-de-contribución)
-- [Convenciones de Código](#-convenciones-de-código)
 - [Roadmap](#-roadmap)
-- [Licencia](#-licencia)
 
 ---
 
 ## ✨ Características
 
-### 📅 Agenda Inteligente
-- Navegación por día con selector de fecha intuitivo
-- **Smart Sorting:** Presentación priorizada por relevancia temporal (las citas próximas suben, las pasadas bajan)
-- **Indicador "En Curso":** Badge animado verde con borde pulsante para la cita activa en el momento actual
-- **Detección de Turnos Fantasmas:** Alertas visuales rojas para citas expiradas sin resolver (>1 hora sin gestión)
-- Búsqueda por texto libre (nombre, apellido o DNI del paciente)
-- Filtros combinados por Especialista, Estado y filtro computado "⚠️ Sin Resolver"
-- **Búsqueda Global Histórica:** Toggle para explorar todas las citas pasadas y futuras sin límite de fecha
-- Integración WhatsApp con plantillas de recordatorio y cancelación prearmadas
-- Modal de confirmación personalizado para estados irreversibles (Cancelada / No Asistió)
-- Creación rápida de pacientes directamente desde el formulario de nuevo turno
+### 📊 Dashboard Profesional (Analíticas)
+- **KPIs en Tiempo Real:** Visualización de citas del día, ingresos recaudados, nuevos pacientes y pagos pendientes.
+- **Gráficas Inteligentes:** Rendimiento semanal dinámico mediante gráficas de área (**Recharts**) filtradas por sucursal.
+- **Próximas Citas:** Monitoreo en vivo de los siguientes pacientes a atender con estados actualizados.
 
-### 👤 Gestión de Pacientes
-- Directorio de pacientes con búsqueda por nombre, apellido o documento
-- Formulario de registro con validación dinámica según tipo de documento (DNI peruano: 8 dígitos, CE/Pasaporte: 6-12 alfanuméricos)
-- Ficha clínica con antecedentes médicos estructurados (diabetes, hipertensión, enfermedad vascular, tratamiento oncológico, alergias)
-- Acceso directo a la historia clínica desde el listado
+### 🏢 Arquitectura Multi-Sede
+- **Selector de Sucursal:** Permite cambiar instantáneamente entre sedes para gestionar datos aislados.
+- **Gestión de Tiendas:** Configuración de RUC, Razón Social, Dirección y WhatsApp específico por sede.
+- **Aislamiento de Datos:** Seguridad mediante filtros de `sucursal_id` y RLS en Supabase.
 
-### 📋 Historia Clínica y Evoluciones
-- Registro de atenciones (evoluciones) vinculadas a paciente y cita
-- Evaluación clínica con checkboxes de hallazgos en piel y uñas
-- Registro de tratamientos realizados (multi-select)
-- Campo de observaciones / indicaciones opcionales
-- Flujo automatizado: desde la Agenda, el botón "Atender" redirige a la historia clínica con la cita pre-seleccionada
+### 🔐 Autenticación y RBAC (Clerk)
+- **Login Unificado:** Acceso seguro mediante Google o Microsoft.
+- **Roles Definidos:** 
+  - 👑 **Dueño:** Acceso global a todas las sedes y configuración de personal.
+  - 📋 **Administrativo:** Gestión operativa de sedes asignadas.
+  - 🩺 **Podólogo:** Acceso exclusivo a su agenda y atenciones clínicas.
 
-### 👨‍⚕️ Administración de Especialistas
-- Directorio CRUD completo de podólogos / personal
-- Asignación de color de etiqueta por especialista para identificación visual en la agenda
-- Toggle de estado Activo/Inactivo con **validación de seguridad**: bloquea la inactivación si el especialista tiene citas pendientes (Programada, Confirmada o En Sala de Espera)
-- Filtro automático: solo especialistas activos aparecen en el formulario de nuevo turno
-
-### 🔔 Sistema de Notificaciones
-- Toasts (`react-hot-toast`) con z-index elevado (`z-[99999]`) para garantizar visibilidad por encima de cualquier modal o drawer
+### 📅 Agenda y Clínica Avanzada
+- **Notificaciones Dinámicas:** Plantillas de WhatsApp que se adaptan automáticamente a los datos de la sede seleccionada.
+- **Comprobantes Profesionales:** Generación de tickets de pago con identidad visual de la sucursal activa.
+- **Flujo Clínico:** Registro detallado de evoluciones, tratamientos y antecedentes.
 
 ---
 
@@ -73,19 +52,6 @@
 
 | Capa | Tecnología | Propósito |
 |------|-----------|-----------|
-| **Runtime** | React 19 + TypeScript 5.9 | Componentes tipados y SPA reactiva |
-| **Build Tool** | Vite 5.4 | Hot Module Replacement ultra-rápido |
-| **Estilos** | Tailwind CSS 3.4 | Utility-first CSS framework |
-| **Backend / DB** | Supabase (PostgreSQL) | BaaS con API auto-generada, auth y real-time |
-| **Formularios** | React Hook Form + Zod | Validación declarativa de esquemas |
-| **Routing** | React Router DOM 7 | Navegación SPA con rutas anidadas |
-| **Notificaciones** | React Hot Toast | Toasts no-bloqueantes con prioridad visual |
-| **Fechas** | date-fns + locale `es` | Formateo y aritmética de fechas en español |
-| **Iconografía** | Lucide React | Iconos SVG minimalistas |
-
-### Diagrama de Módulos
-
-```
 ┌─────────────────────────────────────────────────┐
 │                   App.tsx                       │
 │            BrowserRouter + Toaster              │

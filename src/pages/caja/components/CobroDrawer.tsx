@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, DollarSign, CheckCircle2, User, Clock, CreditCard, Hash } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface ServicioActivo {
   id: string;
@@ -50,6 +51,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [heredadoDeMedico, setHeredadoDeMedico] = useState(false);
+  const { sucursalActiva } = useBranchStore();
 
   // Contador de aperturas: se incrementa cada vez que isOpen pasa a true.
   // Esto fuerza al useEffect a re-ejecutarse incluso si cita es el mismo objeto.
@@ -192,6 +194,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
         metodo_pago: metodoPago,
         estado: 'Pagado',
         fecha_pago: new Date().toISOString(),
+        sucursal_id: sucursalActiva?.id,
       };
       if (codigoReferencia.trim()) {
         payload.codigo_referencia = codigoReferencia.trim();

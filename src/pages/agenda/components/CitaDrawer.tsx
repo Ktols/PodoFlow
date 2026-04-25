@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { citaSchema, type CitaFormValues } from '../schemas/citaSchema';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useBranchStore } from '../../../stores/branchStore';
 import type { CitaList } from '../AgendaPage';
 
 interface PacienteMin {
@@ -68,6 +69,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<CitaFormValues>({
     resolver: zodResolver(citaSchema),
   });
+  const { sucursalActiva } = useBranchStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [pacientes, setPacientes] = useState<PacienteMin[]>([]);
@@ -227,7 +229,8 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           podologo_id: data.podologo_id,
           fecha_cita: data.fecha_cita,
           hora_cita: data.hora_cita,
-          motivo: data.motivo
+          motivo: data.motivo,
+          sucursal_id: sucursalActiva?.id,
         }).eq('id', citaEnEdicion.id);
 
         if (error) throw error;
@@ -239,7 +242,8 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           fecha_cita: data.fecha_cita,
           hora_cita: data.hora_cita,
           motivo: data.motivo,
-          estado: 'Programada'
+          estado: 'Programada',
+          sucursal_id: sucursalActiva?.id,
         }]);
 
         if (error) throw error;

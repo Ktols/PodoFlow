@@ -7,7 +7,7 @@ import { format, addDays, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
-import { CLINIC_INFO } from '../../config/clinicData';
+import { useBranchStore } from '../../stores/branchStore';
 
 export interface CitaList {
   id: string;
@@ -55,6 +55,7 @@ export function AgendaPage() {
   const [selectedEspecialista, setSelectedEspecialista] = useState('');
   const [selectedEstado, setSelectedEstado] = useState('');
   const [isGlobalSearch, setIsGlobalSearch] = useState(false);
+  const { sucursalActiva } = useBranchStore();
 
   useEffect(() => {
     const fetchPodologos = async () => {
@@ -88,6 +89,10 @@ export function AgendaPage() {
       query = query.eq('fecha_cita', dateStr);
     }
 
+    if (sucursalActiva?.id) {
+      query = query.eq('sucursal_id', sucursalActiva.id);
+    }
+
     const { data, error } = await query
       .order('fecha_cita', { ascending: !isGlobalSearch })
       .order('hora_cita', { ascending: true });
@@ -104,7 +109,7 @@ export function AgendaPage() {
 
   useEffect(() => {
     fetchCitas();
-  }, [selectedDate, isGlobalSearch]);
+  }, [selectedDate, isGlobalSearch, sucursalActiva?.id]);
 
   const updateEstadoCita = async (id: string, nuevoEstado: string, skipConfirm = false) => {
     if ((nuevoEstado === 'Cancelada' || nuevoEstado === 'No Asistió') && !skipConfirm) {
@@ -153,22 +158,22 @@ export function AgendaPage() {
     let mensaje = "";
     
     if (cita.estado === 'Cancelada') {
-      mensaje = `Hola ${nombre}, te escribimos de ${CLINIC_INFO.nombre}.
+      mensaje = `Hola ${nombre}, te escribimos de ${sucursalActiva?.nombre_comercial || 'la clínica'}.
 
 Te confirmamos que tu cita de hoy a las ${hora} hrs ha sido cancelada en nuestro sistema.
 
-Si deseas reprogramarla para otra fecha, puedes contactarnos al ${CLINIC_INFO.telefono}.
+Si deseas reprogramarla para otra fecha, puedes contactarnos al ${sucursalActiva?.telefono || ''}.
 
 ¡Gracias por avisarnos!`;
     } else {
-      mensaje = `Hola ${nombre}, te saludamos de ${CLINIC_INFO.nombre}.
+      mensaje = `Hola ${nombre}, te saludamos de ${sucursalActiva?.nombre_comercial || 'la clínica'}.
 
 Queremos recordarte tu cita para hoy a las ${hora} hrs.
 
-Ubicación: ${CLINIC_INFO.direccion}
-Contacto: ${CLINIC_INFO.telefono}
+Ubicación: ${sucursalActiva?.direccion || ''}
+Contacto: ${sucursalActiva?.telefono || ''}
 
-${CLINIC_INFO.mensaje_pie}
+Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este mensaje para cederle el espacio a otro paciente.
 
 ¡Te esperamos!`;
     }
