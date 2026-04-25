@@ -9,6 +9,7 @@
 DO $$
 DECLARE
   sede_principal UUID;
+  row_count INTEGER;
 BEGIN
   -- Obtener la primera sucursal activa
   SELECT id INTO sede_principal 
@@ -27,19 +28,22 @@ BEGIN
   UPDATE public.citas 
   SET sucursal_id = sede_principal 
   WHERE sucursal_id IS NULL;
-  RAISE NOTICE 'Citas actualizadas: %', (SELECT COUNT(*) FROM public.citas WHERE sucursal_id = sede_principal);
+  GET DIAGNOSTICS row_count = ROW_COUNT;
+  RAISE NOTICE 'Citas actualizadas: %', row_count;
 
   -- Actualizar atenciones sin sucursal
   UPDATE public.atenciones 
   SET sucursal_id = sede_principal 
   WHERE sucursal_id IS NULL;
-  RAISE NOTICE 'Atenciones actualizadas: %', (SELECT COUNT(*) FROM public.atenciones WHERE sucursal_id = sede_principal);
+  GET DIAGNOSTICS row_count = ROW_COUNT;
+  RAISE NOTICE 'Atenciones actualizadas: %', row_count;
 
   -- Actualizar pagos sin sucursal  
   UPDATE public.pagos 
   SET sucursal_id = sede_principal 
   WHERE sucursal_id IS NULL;
-  RAISE NOTICE 'Pagos actualizados: %', (SELECT COUNT(*) FROM public.pagos WHERE sucursal_id = sede_principal);
+  GET DIAGNOSTICS row_count = ROW_COUNT;
+  RAISE NOTICE 'Pagos actualizados: %', row_count;
 
   RAISE NOTICE '✅ Backfill completado. Todos los registros ahora pertenecen a la sede principal.';
 END $$;

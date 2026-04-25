@@ -1,13 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Users, 
   Calendar, 
   TrendingUp, 
-  DollarSign, 
   Clock, 
   ArrowUpRight, 
-  ArrowDownRight, 
-  MoreHorizontal,
   Plus,
   Play,
   CheckCircle2,
@@ -21,14 +18,9 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
-  PieChart,
-  Pie
 } from 'recharts';
 import { supabase } from '../lib/supabase';
-import { format, startOfDay, endOfDay, subDays, isSameDay, parseISO, startOfMonth } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays, parseISO, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useBranchStore } from '../stores/branchStore';
 import { useNavigate } from 'react-router-dom';
@@ -60,12 +52,14 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
-    if (!sucursalActiva?.id) return;
+    if (!sucursalActiva?.id) {
+      setIsLoading(false);
+      return;
+    }
     
     setIsLoading(true);
     const today = format(new Date(), 'yyyy-MM-dd');
     const startOfMonthDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-    const oneWeekAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
 
     try {
       // 1. Fetch Today's Appointments

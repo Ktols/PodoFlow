@@ -48,13 +48,9 @@ export const useAuthStore = create<AuthState>((set) => ({
           .single();
 
         if (!emailError && perfilPorEmail) {
-          // Vincular automáticamente el Clerk ID al perfil existente
-          await supabase
-            .from('perfiles')
-            .update({ id: clerkUserId })
-            .eq('email', email);
-
-          data = { ...perfilPorEmail, id: clerkUserId };
+          // Usar el perfil existente sin modificar la clave primaria `perfiles.id`.
+          // Cambiar el PK a un identificador externo (Clerk) puede romper FKs relacionadas.
+          data = perfilPorEmail;
           error = null;
         }
       }

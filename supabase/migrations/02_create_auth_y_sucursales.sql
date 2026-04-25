@@ -34,7 +34,7 @@ CREATE TABLE public.perfiles (
     role_id UUID REFERENCES public.roles(id) ON DELETE SET NULL,
     nombres VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
     telefono VARCHAR(20),
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -44,7 +44,7 @@ CREATE TABLE public.perfiles (
 -- 4. Tabla Intermedia: Usuarios <-> Sucursales
 -- Indica en qué sucursal(es) trabaja un empleado
 CREATE TABLE public.usuarios_sucursales (
-    usuario_id VARCHAR(100) REFERENCES public.perfiles(id) ON DELETE CASCADE,
+    usuario_id VARCHAR(100) REFERENCES public.perfiles(id) ON UPDATE CASCADE ON DELETE CASCADE,
     sucursal_id UUID REFERENCES public.sucursales(id) ON DELETE CASCADE,
     asignado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY(usuario_id, sucursal_id)
@@ -75,8 +75,33 @@ ALTER TABLE public.sucursales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.perfiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.usuarios_sucursales ENABLE ROW LEVEL SECURITY;
 
--- Acceso general para probar desde app (Se mejorará si pasamos los JWT de Clerk a Supabase luego)
-CREATE POLICY "Accesos base public" ON public.roles FOR SELECT USING (true);
-CREATE POLICY "Accesos base public" ON public.sucursales FOR ALL USING (true);
-CREATE POLICY "Accesos base public" ON public.perfiles FOR ALL USING (true);
-CREATE POLICY "Accesos base public" ON public.usuarios_sucursales FOR ALL USING (true);
+-- Acceso restringido al service role (se mejorará con JWTs de Clerk en Supabase si se integran)
+CREATE POLICY "service role read roles"
+ON public.roles FOR SELECT TO service_role USING (true);
+
+CREATE POLICY "service role select sucursales"
+ON public.sucursales FOR SELECT TO service_role USING (true);
+CREATE POLICY "service role insert sucursales"
+ON public.sucursales FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "service role update sucursales"
+ON public.sucursales FOR UPDATE TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service role delete sucursales"
+ON public.sucursales FOR DELETE TO service_role USING (true);
+
+CREATE POLICY "service role select perfiles"
+ON public.perfiles FOR SELECT TO service_role USING (true);
+CREATE POLICY "service role insert perfiles"
+ON public.perfiles FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "service role update perfiles"
+ON public.perfiles FOR UPDATE TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service role delete perfiles"
+ON public.perfiles FOR DELETE TO service_role USING (true);
+
+CREATE POLICY "service role select usuarios_sucursales"
+ON public.usuarios_sucursales FOR SELECT TO service_role USING (true);
+CREATE POLICY "service role insert usuarios_sucursales"
+ON public.usuarios_sucursales FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "service role update usuarios_sucursales"
+ON public.usuarios_sucursales FOR UPDATE TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service role delete usuarios_sucursales"
+ON public.usuarios_sucursales FOR DELETE TO service_role USING (true);
