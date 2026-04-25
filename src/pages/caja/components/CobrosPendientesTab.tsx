@@ -190,7 +190,6 @@ export function CobrosPendientesTab() {
 
   return (
     <>
-      {/* Resumen del Día */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-5">
           <div className="flex items-center gap-3 mb-2">
@@ -235,7 +234,6 @@ export function CobrosPendientesTab() {
         </div>
       </div>
 
-      {/* Lista de Citas */}
       <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center py-24">
@@ -286,7 +284,6 @@ export function CobrosPendientesTab() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                       } ${isPagado ? 'opacity-70' : ''}`}
                     >
-                      {/* Hora */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2.5">
                           <div className={`p-2 rounded-lg ${style.color}`}>
@@ -298,7 +295,6 @@ export function CobrosPendientesTab() {
                         </div>
                       </td>
 
-                      {/* Paciente */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 bg-[#004975]/5 rounded-full flex items-center justify-center shrink-0">
@@ -317,7 +313,6 @@ export function CobrosPendientesTab() {
                         </div>
                       </td>
 
-                      {/* Especialista */}
                       <td className="px-6 py-4">
                         {cita.podologos && (
                           <div
@@ -334,7 +329,6 @@ export function CobrosPendientesTab() {
                         )}
                       </td>
 
-                      {/* Estado Cita */}
                       <td className="px-6 py-4 text-center">
                         <span
                           className={`inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] border shadow-sm ${style.color} ${style.border}`}
@@ -343,7 +337,6 @@ export function CobrosPendientesTab() {
                         </span>
                       </td>
 
-                      {/* Cobro */}
                       <td className="px-6 py-4 text-center">
                         {isPagado ? (
                           <div className="flex flex-col items-center gap-1">
@@ -388,7 +381,6 @@ export function CobrosPendientesTab() {
           </div>
         )}
 
-        {/* Table Footer */}
         {!isLoading && citas.length > 0 && (
           <div className="px-6 py-3.5 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
             <span className="text-xs font-bold text-gray-400">
@@ -406,7 +398,6 @@ export function CobrosPendientesTab() {
         )}
       </div>
 
-      {/* Drawer de Cobro */}
       <CobroDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
@@ -414,7 +405,6 @@ export function CobrosPendientesTab() {
         cita={citaSeleccionada}
       />
 
-      {/* Ticket de Impresión */}
       <TicketPrint
         isOpen={ticketOpen}
         onClose={() => setTicketOpen(false)}
