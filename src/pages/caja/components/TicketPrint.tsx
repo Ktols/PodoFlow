@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import { toast } from 'react-hot-toast';
 import { useReactToPrint } from 'react-to-print';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface ServicioTicket {
   nombre: string;
@@ -54,6 +55,8 @@ const getMetodoIcon = (metodo: string): string => {
 export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
   const comprobanteRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const { sucursalActiva } = useBranchStore();
+  const nombreEmpresa = sucursalActiva?.nombre_comercial || 'G&C Podología';
 
   // Folio para el título del documento (si existe data)
   const tempFolio = data?.numeroTicket
@@ -138,7 +141,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
       // Abrir WhatsApp Web con el teléfono del paciente
       const telefono = data.pacienteTelefono?.replace(/\D/g, '') || '';
       const mensaje = encodeURIComponent(
-        `Hola, adjunto tu comprobante de atención en G&C Podología. Folio: ${folio}`
+        `Hola, adjunto tu comprobante de atención en ${nombreEmpresa}. Folio: ${folio}`
       );
 
       // Esperar un momento para que el usuario lea el toast antes de redirigir
@@ -201,11 +204,11 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
               <div className="flex items-start justify-between p-8 pb-5 border-b-2 border-[#004975]">
                 {/* Left: Brand */}
                 <div>
-                  <h1 className="text-2xl font-black text-[#004975] tracking-tight">G&C Podología</h1>
-                  <p className="text-[10px] font-bold text-[#004975]/50 uppercase tracking-[0.2em] mt-0.5">Centro Podológico Especializado</p>
+                  <h1 className="text-2xl font-black text-[#004975] tracking-tight">{nombreEmpresa}</h1>
+                  <p className="text-[10px] font-bold text-[#004975]/50 uppercase tracking-[0.2em] mt-0.5">{sucursalActiva?.razon_social || 'Centro Podológico Especializado'}</p>
                   <div className="mt-3 space-y-0.5">
-                    <p className="text-[10px] text-gray-400 font-medium">Prolg. Av. Perú Cdra. 51 — Callao</p>
-                    <p className="text-[10px] text-gray-400 font-medium">Tel: 957 063 674</p>
+                    <p className="text-[10px] text-gray-400 font-medium">{sucursalActiva?.direccion || ''}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">Tel: {sucursalActiva?.telefono || ''}</p>
                   </div>
                 </div>
                 {/* Right: Folio Box */}
@@ -314,8 +317,8 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
               <div className="px-8 py-4 border-t border-gray-200 bg-gray-50/80 rounded-b-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400">G&C Podología — Centro Podológico Especializado</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">Prolg. Av. Perú Cdra. 51 — Callao · Tel: 957 063 674</p>
+                    <p className="text-[10px] font-bold text-gray-400">{nombreEmpresa}</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5">{sucursalActiva?.direccion || ''} · Tel: {sucursalActiva?.telefono || ''}</p>
                   </div>
                   <p className="text-xs font-black text-[#00C288]">¡Gracias por su preferencia!</p>
                 </div>

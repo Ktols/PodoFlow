@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/localizations": "^4.5.4",
+    "@clerk/react": "^6.4.4",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.100.1",
     "date-fns": "^4.1.0",
@@ -21,7 +23,8 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.13.2",
     "react-to-print": "^3.3.0",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

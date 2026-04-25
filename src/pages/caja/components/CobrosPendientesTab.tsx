@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CobroDrawer } from './CobroDrawer';
 import { TicketPrint } from './TicketPrint';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface CitaCaja {
   id: string;
@@ -48,12 +49,13 @@ export function CobrosPendientesTab() {
   const [ticketData, setTicketData] = useState<any>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const { sucursalActiva } = useBranchStore();
 
   const fetchData = async () => {
     setIsLoading(true);
 
     // Fetch citas de hoy, excluyendo Cancelada y No Asistió
-    const { data: citasData, error: citasError } = await supabase
+    let citasQuery = supabase
       .from('citas')
       .select(`
         id,
@@ -78,6 +80,12 @@ export function CobrosPendientesTab() {
       .not('estado', 'in', '("Cancelada","No Asistió")')
       .order('hora_cita', { ascending: true });
 
+    if (sucursalActiva?.id) {
+      citasQuery = citasQuery.eq('sucursal_id', sucursalActiva.id);
+    }
+
+    const { data: citasData, error: citasError } = await citasQuery;
+
     if (citasError) {
       toast.error('Error cargando citas del día');
       console.error(citasError);
@@ -101,7 +109,7 @@ export function CobrosPendientesTab() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [sucursalActiva?.id]);
 
   const getPagoByCitaId = (citaId: string) => {
     return pagos.find(p => p.cita_id === citaId);
