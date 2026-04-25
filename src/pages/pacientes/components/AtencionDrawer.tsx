@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { atencionSchema, type AtencionFormValues } from '../schemas/atencionSchema';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useBranchStore } from '../../../stores/branchStore';
 import { type Atencion } from '../HistoriaClinicaPage';
 
 interface AtencionDrawerProps {
@@ -20,6 +21,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, reset } = useForm<AtencionFormValues>({
     resolver: zodResolver(atencionSchema),
   });
+  const { sucursalActiva } = useBranchStore();
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -123,6 +125,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
         evaluacion_unas: data.evaluacion_unas || [],
         tratamientos_realizados: data.tratamientos_realizados,
         podologo_id: data.podologo_id,
+        sucursal_id: sucursalActiva?.id,
       };
 
       if (originCitaId && !atencion?.id) {
