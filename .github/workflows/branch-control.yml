@@ -2,6 +2,7 @@ name: Branch Compliance Control
 
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   pull_request:
@@ -14,6 +15,7 @@ jobs:
 
     steps:
       - name: Verificar rama de origen permitida
+        id: check
         run: |
           SOURCE="${{ github.head_ref }}"
           TARGET="${{ github.base_ref }}"
@@ -25,30 +27,13 @@ jobs:
           echo "  Rama destino: $TARGET"
           echo "=========================================="
 
+          # Guardamos las variables para el siguiente step si es necesario
+          echo "source=$SOURCE" >> $GITHUB_OUTPUT
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
+
           if [ "$TARGET" == "main" ]; then
             if [ "$SOURCE" != "QA" ]; then
-              echo ""
-              echo "❌ ERROR: Pull Request rechazado."
-              echo ""
-              echo "La rama 'main' solo acepta PRs desde 'QA'."
-              echo "Rama de origen detectada: '$SOURCE'"
-              echo ""
-              echo "Flujo correcto: develop → QA → main"
-              echo ""
-              exit 1
-            fi
-          fi
-
-          if [ "$TARGET" == "QA" ]; then
-            if [ "$SOURCE" != "develop" ]; then
-              echo ""
-              echo "❌ ERROR: Pull Request rechazado."
-              echo ""
-              echo "La rama 'QA' solo acepta PRs desde 'develop'."
-              echo "Rama de origen detectada: '$SOURCE'"
-              echo ""
-              echo "Flujo correcto: develop → QA → main"
-              echo ""
+              echo "error_msg=❌ ERROR: Pull Request rechazado. La rama 'main' solo acepta PRs desde 'QA'. Rama de origen detectada: '$SOURCE'. Flujo correcto: any -> QA -> main" >> $GITHUB_OUTPUT
               exit 1
             fi
           fi
@@ -56,3 +41,15 @@ jobs:
           echo ""
           echo "✅ Validación exitosa: $SOURCE → $TARGET es un flujo permitido."
           echo ""
+
+      - name: Dejar comentario si falla
+        if: failure() && steps.check.outputs.error_msg != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${{ steps.check.outputs.error_msg }}`
+            })
