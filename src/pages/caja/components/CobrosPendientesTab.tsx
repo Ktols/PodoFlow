@@ -85,7 +85,6 @@ export function CobrosPendientesTab() {
     }
 
     const { data: citasData, error: citasError } = await citasQuery;
-
     if (citasError) {
       toast.error('Error cargando citas del día');
       console.error(citasError);

@@ -210,6 +210,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                     <p className="text-[10px] text-gray-400 font-medium">{sucursalActiva?.direccion || ''}</p>
                     <p className="text-[10px] text-gray-400 font-medium">Tel: {sucursalActiva?.telefono || ''}</p>
                   </div>
+                  </div>
                 </div>
                 {/* Right: Folio Box */}
                 <div className="text-right bg-[#004975]/5 rounded-lg px-5 py-3 border border-[#004975]/10">
