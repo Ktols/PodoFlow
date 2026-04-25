@@ -13,9 +13,10 @@ interface PacienteDrawerProps {
   onSuccess?: () => void;
   onSuccessWithData?: (data: any) => void;
   patient?: Paciente | null;
+  defaultDocumento?: string;
 }
 
-export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, patient }: PacienteDrawerProps) {
+export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, patient, defaultDocumento }: PacienteDrawerProps) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<PacienteFormValues>({
     resolver: zodResolver(pacienteSchema),
     defaultValues: {
@@ -44,7 +45,7 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
       } else {
         reset({
           tipo_documento: 'DNI',
-          numero_documento: '',
+          numero_documento: defaultDocumento || '',
           nombres: '',
           apellidos: '',
           telefono: '',

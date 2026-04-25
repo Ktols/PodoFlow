@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle, Plus, CalendarDays, Clock, DollarSign } from 'lucide-react';
+import { X, Search, AlertTriangle, Plus, CalendarDays, Clock, DollarSign, History, Activity } from 'lucide-react';
 import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -74,6 +74,24 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const [searchTerm, setSearchTerm] = useState('');
   const [pacientes, setPacientes] = useState<PacienteMin[]>([]);
   const [podologos, setPodologos] = useState<PodologoMin[]>([]);
+  const [serviciosList, setServiciosList] = useState<{id: string, nombre: string}[]>([]);
+
+  // Patient history context
+  interface VisitaResumen {
+    created_at: string;
+    motivo_consulta: string;
+    tratamientos_realizados: string[];
+    especialista: string;
+  }
+  interface PatientHistoryData {
+    totalVisitas: number;
+    ultimaVisita: string | null;
+    tratamientosFrecuentes: string[];
+    ultimasVisitas: VisitaResumen[];
+    alertas: { diabetes?: boolean; hipertension?: boolean; enfermedad_vascular?: boolean; tratamiento_oncologico?: boolean; alergias_detalle?: string | null };
+  }
+  const [patientHistory, setPatientHistory] = useState<PatientHistoryData | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -83,6 +101,58 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const selectedPacienteId = watch('paciente_id');
   const selectedPaciente = pacientes.find(p => p.id === selectedPacienteId);
   const watchedFechaCita = watch('fecha_cita');
+
+  // Fetch patient history when selected
+  useEffect(() => {
+    if (!selectedPacienteId) { setPatientHistory(null); return; }
+    const fetchHistory = async () => {
+      setHistoryLoading(true);
+      // Fetch patient alerts
+      const { data: pacData } = await supabase
+        .from('pacientes')
+        .select('diabetes, hipertension, enfermedad_vascular, tratamiento_oncologico, alergias_detalle')
+        .eq('id', selectedPacienteId)
+        .single();
+
+      // Fetch atenciones with specialist info
+      const { data: atencionesData } = await supabase
+        .from('atenciones')
+        .select('created_at, motivo_consulta, tratamientos_realizados, podologos(nombres)')
+        .eq('paciente_id', selectedPacienteId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const totalVisitas = atencionesData?.length || 0;
+      const ultimaVisita = atencionesData?.[0]?.created_at || null;
+
+      // Count tratamientos frequency
+      const freq: Record<string, number> = {};
+      atencionesData?.forEach((a: any) => {
+        (a.tratamientos_realizados || []).forEach((t: string) => { freq[t] = (freq[t] || 0) + 1; });
+      });
+      const tratamientosFrecuentes = Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name]) => name);
+
+      const ultimasVisitas: VisitaResumen[] = (atencionesData || []).slice(0, 5).map((a: any) => ({
+        created_at: a.created_at,
+        motivo_consulta: a.motivo_consulta,
+        tratamientos_realizados: a.tratamientos_realizados || [],
+        especialista: a.podologos?.nombres || '',
+      }));
+
+      setPatientHistory({
+        totalVisitas,
+        ultimaVisita,
+        tratamientosFrecuentes,
+        ultimasVisitas,
+        alertas: pacData || {},
+      });
+      setHistoryLoading(false);
+    };
+    fetchHistory();
+  }, [selectedPacienteId]);
 
   // Mantiene sincronizada la hora cuando cambia la fecha
   useEffect(() => {
@@ -117,6 +187,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           fecha_cita: citaEnEdicion.fecha_cita,
           hora_cita: citaEnEdicion.hora_cita.substring(0, 5),
           motivo: citaEnEdicion.motivo,
+          servicios_preseleccionados: (citaEnEdicion as any).servicios_preseleccionados || [],
           adelanto: (citaEnEdicion as any).adelanto ? String((citaEnEdicion as any).adelanto) : '',
           adelanto_metodo_pago: (citaEnEdicion as any).adelanto_metodo_pago || '',
         });
@@ -138,6 +209,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           fecha_cita: localDate,
           hora_cita: getSmartInitialTime(localDate),
           motivo: '',
+          servicios_preseleccionados: [],
           adelanto: '',
           adelanto_metodo_pago: '',
         });
@@ -150,8 +222,13 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         const { data } = await supabase.from('podologos').select('id, nombres, especialidad, color_etiqueta').eq('estado', true);
         if (data) setPodologos(data);
       };
-      
+      const fetchServicios = async () => {
+        const { data } = await supabase.from('servicios').select('id, nombre').eq('estado', true).order('nombre');
+        if (data) setServiciosList(data);
+      };
+
       fetchPodologos();
+      fetchServicios();
     }
   }, [isOpen, selectedDate, reset, citaEnEdicion]);
 
@@ -206,35 +283,37 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         }
       }
 
-      // 2. Regla Concurrente (Sólo Especialista, se permite a paciente agendar dos turnos)
-      let qEspecialista = supabase.from('citas').select('id')
-        .eq('fecha_cita', data.fecha_cita)
-        .eq('hora_cita', data.hora_cita)
-        .eq('podologo_id', data.podologo_id)
-        .neq('estado', 'Cancelada')
-        .neq('estado', 'CANCELADA');
+      // 2. Regla Concurrente (Sólo si hay especialista asignado)
+      if (data.podologo_id) {
+        let qEspecialista = supabase.from('citas').select('id')
+          .eq('fecha_cita', data.fecha_cita)
+          .eq('hora_cita', data.hora_cita)
+          .eq('podologo_id', data.podologo_id)
+          .neq('estado', 'Cancelada')
+          .neq('estado', 'CANCELADA');
 
-      if (citaEnEdicion) {
-        qEspecialista = qEspecialista.neq('id', citaEnEdicion.id);
-      }
+        if (citaEnEdicion) {
+          qEspecialista = qEspecialista.neq('id', citaEnEdicion.id);
+        }
 
-      const { data: resEspecialista, error: especialistaError } = await qEspecialista;
+        const { data: resEspecialista, error: especialistaError } = await qEspecialista;
 
-      if (especialistaError) throw especialistaError;
+        if (especialistaError) throw especialistaError;
 
-      // Evaluar conflictos de concurrencia
-      if (resEspecialista && resEspecialista.length > 0) {
-        setValidationError("Error: El especialista asignado ya tiene un turno a esa hora. Elija otra hora u otro especialista.");
-        return;
+        if (resEspecialista && resEspecialista.length > 0) {
+          setValidationError("Error: El especialista asignado ya tiene un turno a esa hora. Elija otra hora u otro especialista.");
+          return;
+        }
       }
 
       if (citaEnEdicion) {
         const adelantoVal = parseFloat(data.adelanto || '0') || 0;
         const { error } = await supabase.from('citas').update({
-          podologo_id: data.podologo_id,
+          podologo_id: data.podologo_id || null,
           fecha_cita: data.fecha_cita,
           hora_cita: data.hora_cita,
-          motivo: data.motivo,
+          motivo: data.motivo || '',
+          servicios_preseleccionados: data.servicios_preseleccionados || [],
           adelanto: adelantoVal,
           adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
         }).eq('id', citaEnEdicion.id);
@@ -245,11 +324,12 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         const adelantoVal = parseFloat(data.adelanto || '0') || 0;
         const { error } = await supabase.from('citas').insert([{
           paciente_id: data.paciente_id,
-          podologo_id: data.podologo_id,
+          podologo_id: data.podologo_id || null,
           fecha_cita: data.fecha_cita,
           hora_cita: data.hora_cita,
-          motivo: data.motivo,
+          motivo: data.motivo || '',
           estado: 'Programada',
+          servicios_preseleccionados: data.servicios_preseleccionados || [],
           adelanto: adelantoVal,
           adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
         }]);
@@ -371,11 +451,99 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                   )}
                 </div>
               )}
+
+              {/* Patient History Context */}
+              {selectedPacienteId && (
+                historyLoading ? (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-[#00C288] rounded-full animate-spin" />
+                    <span className="text-xs font-bold text-gray-400">Cargando historial...</span>
+                  </div>
+                ) : patientHistory && (
+                  <div className="mt-3 bg-[#004975]/5 rounded-xl border border-[#004975]/10 p-3.5 space-y-2.5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <History className="w-3.5 h-3.5 text-[#004975]" />
+                      <span className="text-[11px] font-black text-[#004975] uppercase tracking-wider">Contexto del Paciente</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-[11px] font-bold text-gray-500 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-sm">
+                        {patientHistory.totalVisitas} visita{patientHistory.totalVisitas !== 1 ? 's' : ''}
+                      </span>
+                      {patientHistory.ultimaVisita && (
+                        <span className="text-[11px] font-bold text-gray-500 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-sm">
+                          Última: {format(new Date(patientHistory.ultimaVisita), "d MMM yyyy", { locale: es })}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Alertas médicas */}
+                    {(patientHistory.alertas.diabetes || patientHistory.alertas.hipertension || patientHistory.alertas.enfermedad_vascular || patientHistory.alertas.tratamiento_oncologico || patientHistory.alertas.alergias_detalle) && (
+                      <div className="flex items-start gap-2 bg-red-50 rounded-lg p-2.5 border border-red-100">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                        <div className="flex flex-wrap gap-1.5">
+                          {patientHistory.alertas.diabetes && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Diabetes</span>}
+                          {patientHistory.alertas.hipertension && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Hipertensión</span>}
+                          {patientHistory.alertas.enfermedad_vascular && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Enf. Vascular</span>}
+                          {patientHistory.alertas.tratamiento_oncologico && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Trat. Oncológico</span>}
+                          {patientHistory.alertas.alergias_detalle && <span className="text-[10px] font-bold text-red-600">{patientHistory.alertas.alergias_detalle}</span>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tratamientos frecuentes */}
+                    {patientHistory.tratamientosFrecuentes.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tratamientos frecuentes</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {patientHistory.tratamientosFrecuentes.map(t => (
+                            <span key={t} className="text-[10px] font-bold text-[#004975] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mini timeline de últimas visitas */}
+                    {patientHistory.ultimasVisitas.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Últimas visitas</span>
+                        <div className="mt-1.5 space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                          {patientHistory.ultimasVisitas.map((v, i) => (
+                            <div key={i} className="bg-white rounded-lg border border-gray-200 p-2.5 shadow-sm">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-black text-[#004975]">
+                                  {format(new Date(v.created_at), "d MMM yyyy", { locale: es })}
+                                </span>
+                                {v.especialista && (
+                                  <span className="text-[9px] font-bold text-gray-400">{v.especialista}</span>
+                                )}
+                              </div>
+                              <p className="text-[11px] font-bold text-gray-600 leading-tight">{v.motivo_consulta}</p>
+                              {v.tratamientos_realizados.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {v.tratamientos_realizados.map(t => (
+                                    <span key={t} className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">{t}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {patientHistory.totalVisitas === 0 && (
+                      <p className="text-[11px] font-bold text-gray-400">Primera vez en el centro — sin historial previo.</p>
+                    )}
+                  </div>
+                )
+              )}
+
               {errors.paciente_id && <p className="text-red-500 text-xs mt-2 font-bold px-1">{errors.paciente_id.message}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-[#004975] mb-2">Especialista Asignado <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-bold text-[#004975] mb-2">Especialista Asignado</label>
               <select 
                 className={`w-full border bg-gray-50 focus:bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-[#00C288] transition-colors shadow-sm font-medium ${errors.podologo_id ? 'border-red-500' : 'border-gray-200'}`}
                 {...register('podologo_id')}
@@ -449,10 +617,30 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               </div>
             </div>
 
-            <div className="pt-2">
-              <label className="block text-sm font-bold text-[#004975] mb-2">Motivo Reservado <span className="text-red-500">*</span></label>
-              <textarea 
-                rows={4}
+            {/* Servicios / Tratamientos preseleccionados */}
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <label className="block text-sm font-bold text-[#004975] mb-3">Tratamientos Previstos</label>
+              {serviciosList.length === 0 ? (
+                <p className="text-sm font-bold text-gray-400 bg-gray-50 p-3 rounded-lg border border-gray-200 text-center">
+                  No hay servicios activos.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4">
+                  {serviciosList.map(srv => (
+                    <label key={srv.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors group">
+                      <input type="checkbox" value={srv.nombre} className="w-4 h-4 rounded text-[#00C288] focus:ring-[#00C288] border-gray-300" {...register('servicios_preseleccionados')} />
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-[#004975] transition-colors uppercase tracking-tight">{srv.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] font-bold text-gray-400 mt-2">Opcional. Se pre-cargarán al registrar la atención.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-[#004975] mb-2">Motivo Reservado</label>
+              <textarea
+                rows={3}
                 placeholder="Ej: Evaluación general de podiatría, atención a domicilio..."
                 className={`w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-[#00C288] resize-none transition-colors shadow-sm ${errors.motivo ? 'border-red-500' : 'border-gray-200'}`}
                 {...register('motivo')}
@@ -525,10 +713,11 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         
       </div>
 
-      <PacienteDrawer 
-        isOpen={isNewPatientModalOpen} 
+      <PacienteDrawer
+        isOpen={isNewPatientModalOpen}
         onClose={() => setIsNewPatientModalOpen(false)}
         onSuccessWithData={handleNewPatientCreated}
+        defaultDocumento={searchTerm}
       />
     </>
   );

@@ -1,4 +1,4 @@
-import { X, ImagePlus, XCircle, Package } from 'lucide-react';
+import { X, ImagePlus, XCircle, Package, Pill, CalendarDays, AlertTriangle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,6 +27,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   const [podologosList, setPodologosList] = useState<any[]>([]);
   const [serviciosList, setServiciosList] = useState<{id: string, nombre: string, precio_base: number}[]>([]);
   const [productosList, setProductosList] = useState<{id: string, nombre: string}[]>([]);
+  const [antecedentes, setAntecedentes] = useState<any>(null);
 
   useEffect(() => {
     const fetchPodologos = async () => {
@@ -41,10 +42,16 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
       const { data } = await supabase.from('productos').select('id, nombre').eq('estado', true).order('nombre');
       if (data) setProductosList(data);
     };
+    const fetchAntecedentes = async () => {
+      if (!pacienteId) return;
+      const { data } = await supabase.from('pacientes').select('diabetes, hipertension, enfermedad_vascular, tratamiento_oncologico, alergias_detalle, alergias_alertas').eq('id', pacienteId).single();
+      if (data) setAntecedentes(data);
+    };
     fetchPodologos();
     fetchServicios();
     fetchProductos();
-  }, []);
+    fetchAntecedentes();
+  }, [pacienteId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -52,32 +59,43 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
         setExistingPhotos(atencion.fotos || []);
         reset({
           motivo_consulta: atencion.motivo_consulta,
+          diagnostico: atencion.diagnostico || '',
           tratamiento: atencion.tratamiento || '',
+          recomendaciones: atencion.recomendaciones || '',
           indicaciones: atencion.indicaciones || '',
           evaluacion_piel: atencion.evaluacion_piel || [],
           evaluacion_unas: atencion.evaluacion_unas || [],
           tratamientos_realizados: atencion.tratamientos_realizados || [],
           productos_usados: atencion.productos_usados || [],
+          medicamentos_recetados: atencion.medicamentos_recetados || [],
+          proxima_cita: atencion.proxima_cita || '',
           podologo_id: atencion.podologo_id || '',
         });
       } else {
         setExistingPhotos([]);
         reset({
           motivo_consulta: '',
+          diagnostico: '',
           tratamiento: '',
+          recomendaciones: '',
           indicaciones: '',
           evaluacion_piel: [],
           evaluacion_unas: [],
           tratamientos_realizados: [],
           productos_usados: [],
+          medicamentos_recetados: [],
+          proxima_cita: '',
           podologo_id: '',
         });
         
         if (originCitaId) {
           const fetchCita = async () => {
-            const { data } = await supabase.from('citas').select('podologo_id').eq('id', originCitaId).single();
+            const { data } = await supabase.from('citas').select('podologo_id, servicios_preseleccionados').eq('id', originCitaId).single();
             if (data?.podologo_id) {
               setValue('podologo_id', data.podologo_id);
+            }
+            if (data?.servicios_preseleccionados && Array.isArray(data.servicios_preseleccionados) && data.servicios_preseleccionados.length > 0) {
+              setValue('tratamientos_realizados', data.servicios_preseleccionados, { shouldValidate: true });
             }
           };
           fetchCita();
@@ -124,13 +142,17 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
       const dbData: any = {
         paciente_id: pacienteId,
         motivo_consulta: data.motivo_consulta,
+        diagnostico: data.diagnostico || '',
         tratamiento: data.tratamiento || '',
+        recomendaciones: data.recomendaciones || '',
         indicaciones: data.indicaciones || '',
         fotos: allPhotos.length > 0 ? allPhotos : null,
         evaluacion_piel: data.evaluacion_piel || [],
         evaluacion_unas: data.evaluacion_unas || [],
         tratamientos_realizados: data.tratamientos_realizados,
         productos_usados: data.productos_usados || [],
+        medicamentos_recetados: data.medicamentos_recetados || [],
+        proxima_cita: data.proxima_cita || null,
         podologo_id: data.podologo_id,
       };
 
@@ -278,27 +300,116 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
               )}
             </div>
 
+            {/* Antecedentes Médicos (read-only) */}
+            {antecedentes && (antecedentes.diabetes || antecedentes.hipertension || antecedentes.enfermedad_vascular || antecedentes.tratamiento_oncologico || antecedentes.alergias_detalle || antecedentes.alergias_alertas) && (
+              <div className="bg-red-50/50 rounded-xl border border-red-100 p-3.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  <span className="text-[11px] font-black text-red-700 uppercase tracking-wider">Antecedentes Médicos del Paciente</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {antecedentes.diabetes && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Diabetes</span>}
+                  {antecedentes.hipertension && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Hipertensión</span>}
+                  {antecedentes.enfermedad_vascular && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Enf. Vascular</span>}
+                  {antecedentes.tratamiento_oncologico && <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Trat. Oncológico</span>}
+                  {antecedentes.alergias_detalle && <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{antecedentes.alergias_detalle}</span>}
+                  {antecedentes.alergias_alertas && <span className="text-[10px] font-bold text-red-600">{antecedentes.alergias_alertas}</span>}
+                </div>
+              </div>
+            )}
+
+            {/* Diagnóstico */}
             <div>
-              <label className="block text-sm font-bold text-secondary mb-1">Observaciones del Tratamiento (Opcional)</label>
-              <textarea 
-                rows={3}
-                placeholder="Detalles adicionales, técnica particular, o anestesias usadas..."
-                className={`w-full border rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary outline-none transition-colors resize-none ${errors.tratamiento ? 'border-red-500' : 'border-gray-200'}`}
-                {...register('tratamiento')}
+              <label className="block text-sm font-bold text-secondary mb-1">Diagnóstico</label>
+              <textarea
+                rows={2}
+                placeholder="Ej: Onicocriptosis bilateral, heloma plantar en zona metatarsal..."
+                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary resize-none transition-colors"
+                {...register('diagnostico')}
               />
-              {errors.tratamiento && <p className="text-red-500 text-xs mt-1">{errors.tratamiento.message}</p>}
             </div>
 
+            {/* Observaciones del Tratamiento */}
             <div>
-              <label className="block text-sm font-bold text-secondary mb-2">Fotografías Clínicas (Opcional)</label>
+              <label className="block text-sm font-bold text-secondary mb-1">Observaciones del Tratamiento</label>
+              <textarea
+                rows={2}
+                placeholder="Detalles adicionales, técnica particular, anestesias usadas..."
+                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary resize-none transition-colors"
+                {...register('tratamiento')}
+              />
+            </div>
+
+            {/* Medicamentos Recetados */}
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <label className="block text-sm font-bold text-secondary mb-3 flex items-center gap-2">
+                <Pill className="w-4 h-4 text-purple-500" />
+                Medicamentos / Productos Recetados
+              </label>
+              {productosList.length === 0 ? (
+                <p className="text-sm font-bold text-gray-400 bg-gray-50 p-3 rounded-lg border border-gray-200 text-center">
+                  No hay productos registrados.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4">
+                  {productosList.map(prod => (
+                    <label key={prod.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-purple-50/50 p-2 -ml-2 rounded-lg transition-colors group">
+                      <input type="checkbox" value={prod.nombre} className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-gray-300" {...register('medicamentos_recetados')} />
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-purple-800 transition-colors">{prod.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] font-bold text-gray-400 mt-2">Productos recetados al paciente. Se descontarán del inventario.</p>
+            </div>
+
+            {/* Recomendaciones */}
+            <div>
+              <label className="block text-sm font-bold text-secondary mb-1">Recomendaciones</label>
+              <textarea
+                rows={2}
+                placeholder="Ej: Evitar calzado cerrado, mantener pies secos..."
+                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary resize-none transition-colors"
+                {...register('recomendaciones')}
+              />
+            </div>
+
+            {/* Indicaciones */}
+            <div>
+              <label className="block text-sm font-bold text-secondary mb-1">Indicaciones para el Paciente</label>
+              <textarea
+                rows={2}
+                placeholder="Ej: Aplicar crema antimicótica 2 veces al día, lavar con suero..."
+                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary resize-none transition-colors"
+                {...register('indicaciones')}
+              />
+            </div>
+
+            {/* Próxima Cita */}
+            <div>
+              <label className="block text-sm font-bold text-secondary mb-1 flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-[#00C288]" />
+                Próxima Cita Sugerida
+              </label>
+              <input
+                type="date"
+                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary transition-colors"
+                {...register('proxima_cita')}
+              />
+              <p className="text-xs text-gray-400 mt-1">Fecha sugerida para la siguiente visita del paciente.</p>
+            </div>
+
+            {/* Fotografías Clínicas */}
+            <div>
+              <label className="block text-sm font-bold text-secondary mb-2">Fotografías Clínicas</label>
               <div className="flex flex-col gap-3">
                 <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg p-5 hover:bg-gray-100 hover:border-primary transition-colors cursor-pointer text-gray-500">
                   <ImagePlus className="w-5 h-5" />
                   <span className="font-medium text-sm">Subir nuevas imágenes</span>
-                  <input 
-                    type="file" 
-                    multiple 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files) {
@@ -307,7 +418,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
                     }}
                   />
                 </label>
-                
+
                 {(existingPhotos.length > 0 || previewUrls.length > 0) && (
                   <div className="grid grid-cols-4 gap-3 mt-1">
                     {existingPhotos.map((url, i) => (
@@ -319,7 +430,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
                     {previewUrls.map((url, i) => (
                       <div key={`new-${i}`} className="relative aspect-square rounded-lg border-2 border-primary/50 overflow-hidden group">
                         <img src={url} alt="Nueva previa" className="w-full h-full object-cover opacity-90" />
-                        <button 
+                        <button
                           type="button"
                           onClick={() => {
                             const updated = [...selectedFiles];
@@ -336,17 +447,6 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
                   </div>
                 )}
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-secondary mb-1">Indicaciones (Casa)</label>
-              <textarea 
-                rows={3}
-                placeholder="Ej: Lavar con suero, reposo relativo..."
-                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary resize-none transition-colors"
-                {...register('indicaciones')}
-              />
-              <p className="text-xs text-gray-400 mt-1">Recomendaciones posteriores al tratamiento dado al paciente.</p>
             </div>
             
           </form>

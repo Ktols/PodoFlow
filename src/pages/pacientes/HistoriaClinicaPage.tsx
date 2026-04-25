@@ -12,7 +12,9 @@ export interface Atencion {
   id: string;
   paciente_id: string;
   motivo_consulta: string;
+  diagnostico?: string | null;
   tratamiento: string | null;
+  recomendaciones?: string | null;
   indicaciones: string | null;
   fotos: string[] | null;
   created_at: string;
@@ -20,6 +22,8 @@ export interface Atencion {
   evaluacion_unas?: string[];
   tratamientos_realizados?: string[];
   productos_usados?: string[];
+  medicamentos_recetados?: string[];
+  proxima_cita?: string | null;
   podologo_id?: string;
   podologos?: {
     id: string;
@@ -347,11 +351,16 @@ export function HistoriaClinicaPage() {
                   
                   <div className="space-y-5">
                     <div>
-                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1.5 flex items-center gap-2">
-                         Motivo de Consulta
-                      </h4>
+                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1.5">Motivo de Consulta</h4>
                       <p className="text-secondary font-semibold text-lg">{atencion.motivo_consulta}</p>
                     </div>
+
+                    {atencion.diagnostico && (
+                      <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100/50">
+                        <h4 className="text-xs font-bold text-blue-800 tracking-wider uppercase mb-1">Diagnóstico</h4>
+                        <p className="text-blue-900 text-sm whitespace-pre-wrap">{atencion.diagnostico}</p>
+                      </div>
+                    )}
 
                     {(atencion.evaluacion_piel?.length || atencion.evaluacion_unas?.length) ? (
                       <div>
@@ -400,10 +409,42 @@ export function HistoriaClinicaPage() {
                       </div>
                     )}
 
+                    {atencion.medicamentos_recetados && atencion.medicamentos_recetados.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Medicamentos Recetados</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {atencion.medicamentos_recetados.map(item => (
+                            <span key={item} className="bg-purple-50 text-purple-800 border border-purple-100 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {atencion.recomendaciones && (
+                      <div className="bg-green-50/50 rounded-lg p-3 border border-green-100/50">
+                        <h4 className="text-xs font-bold text-green-800 tracking-wider uppercase mb-1">Recomendaciones</h4>
+                        <p className="text-green-900 text-sm whitespace-pre-wrap">{atencion.recomendaciones}</p>
+                      </div>
+                    )}
+
                     {atencion.indicaciones && (
-                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 mt-4 print:color-adjust-exact">
-                        <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5">Indicaciones al Paciente (Casa)</h4>
+                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 print:color-adjust-exact">
+                        <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5">Indicaciones al Paciente</h4>
                         <p className="text-yellow-900 text-sm whitespace-pre-wrap">{atencion.indicaciones}</p>
+                      </div>
+                    )}
+
+                    {atencion.proxima_cita && (
+                      <div className="flex items-center gap-2 bg-[#00C288]/5 rounded-lg p-3 border border-[#00C288]/20">
+                        <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0" />
+                        <div>
+                          <span className="text-[10px] font-black text-[#00C288] uppercase tracking-wider">Próxima cita sugerida</span>
+                          <p className="text-sm font-bold text-[#004975]">
+                            {format(new Date(atencion.proxima_cita + 'T12:00:00'), "EEEE d 'de' MMMM, yyyy", { locale: es })}
+                          </p>
+                        </div>
                       </div>
                     )}
                     
