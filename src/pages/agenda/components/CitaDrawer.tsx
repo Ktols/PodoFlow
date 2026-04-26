@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { CitaList } from '../AgendaPage';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface PacienteMin {
   id: string;
@@ -67,6 +68,7 @@ const getSmartInitialTime = (dateStr: string) => {
 };
 
 export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdicion }: CitaDrawerProps) {
+  const { sucursalActiva } = useBranchStore();
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<CitaFormValues>({
     resolver: zodResolver(citaSchema),
   });
@@ -316,6 +318,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           servicios_preseleccionados: data.servicios_preseleccionados || [],
           adelanto: adelantoVal,
           adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
+          sucursal_id: sucursalActiva?.id,
         }).eq('id', citaEnEdicion.id);
 
         if (error) throw error;
@@ -332,6 +335,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           servicios_preseleccionados: data.servicios_preseleccionados || [],
           adelanto: adelantoVal,
           adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
+          sucursal_id: sucursalActiva?.id,
         }]);
 
         if (error) throw error;

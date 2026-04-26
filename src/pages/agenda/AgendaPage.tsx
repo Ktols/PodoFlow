@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
 import { ExportModal } from '../../components/ExportModal';
 import { CLINIC_INFO, SELLOS_PARA_GRATIS } from '../../config/clinicData';
+import { useBranchStore } from '../../stores/branchStore';
 import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface CitaList {
@@ -51,6 +52,7 @@ export function AgendaPage() {
   const [citas, setCitas] = useState<CitaList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  const { sucursalActiva } = useBranchStore();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [citaEnEdicion, setCitaEnEdicion] = useState<CitaList | null>(null);
   const [citaAConfirmar, setCitaAConfirmar] = useState<{id: string, nuevoEstado: string} | null>(null);
@@ -130,6 +132,10 @@ export function AgendaPage() {
       query = query.eq('fecha_cita', dateStr);
     }
 
+    if (sucursalActiva?.id) {
+      query = query.eq('sucursal_id', sucursalActiva.id);
+    }
+
     const { data, error } = await query
       .order('fecha_cita', { ascending: !isGlobalSearch })
       .order('hora_cita', { ascending: true });
@@ -146,7 +152,7 @@ export function AgendaPage() {
 
   useEffect(() => {
     fetchCitas();
-  }, [selectedDate, isGlobalSearch]);
+  }, [selectedDate, isGlobalSearch, sucursalActiva?.id]);
 
   const updateEstadoCita = async (id: string, nuevoEstado: string, skipConfirm = false) => {
     if ((nuevoEstado === 'Cancelada' || nuevoEstado === 'No Asistió') && !skipConfirm) {
@@ -195,20 +201,20 @@ export function AgendaPage() {
     let mensaje = "";
     
     if (cita.estado === 'Cancelada') {
-      mensaje = `Hola ${nombre}, te escribimos de ${CLINIC_INFO.nombre}.
+      mensaje = `Hola ${nombre}, te escribimos de ${sucursalActiva?.nombre_comercial || CLINIC_INFO.nombre}.
 
 Te confirmamos que tu cita de hoy a las ${hora} hrs ha sido cancelada en nuestro sistema.
 
-Si deseas reprogramarla para otra fecha, puedes contactarnos al ${CLINIC_INFO.telefono}.
+Si deseas reprogramarla para otra fecha, puedes contactarnos al ${sucursalActiva?.telefono || CLINIC_INFO.telefono}.
 
 ¡Gracias por avisarnos!`;
     } else {
-      mensaje = `Hola ${nombre}, te saludamos de ${CLINIC_INFO.nombre}.
+      mensaje = `Hola ${nombre}, te saludamos de ${sucursalActiva?.nombre_comercial || CLINIC_INFO.nombre}.
 
 Queremos recordarte tu cita para hoy a las ${hora} hrs.
 
-Ubicación: ${CLINIC_INFO.direccion}
-Contacto: ${CLINIC_INFO.telefono}
+Ubicación: ${sucursalActiva?.direccion || CLINIC_INFO.direccion}
+Contacto: ${sucursalActiva?.telefono || CLINIC_INFO.telefono}
 
 ${CLINIC_INFO.mensaje_pie}
 

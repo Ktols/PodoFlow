@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import { toast } from 'react-hot-toast';
 import { useReactToPrint } from 'react-to-print';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface ServicioTicket {
   nombre: string;
@@ -52,6 +53,8 @@ const getMetodoIcon = (metodo: string): string => {
 };
 
 export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
+  const { sucursalActiva } = useBranchStore();
+  const nombreEmpresa = sucursalActiva?.nombre_comercial || 'G&C Podología';
   const comprobanteRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 

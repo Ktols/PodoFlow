@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { StampCard } from '../../../components/StampCard';
 import { SELLOS_PARA_GRATIS } from '../../../config/clinicData';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface ServicioActivo {
   id: string;
@@ -45,6 +46,7 @@ const METODOS_PAGO = [
 ];
 
 export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerProps) {
+  const { sucursalActiva } = useBranchStore();
   const [servicios, setServicios] = useState<ServicioActivo[]>([]);
   const [selectedServicios, setSelectedServicios] = useState<Set<string>>(new Set());
   const [montoTotal, setMontoTotal] = useState<string>('');
@@ -218,6 +220,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
         estado: 'Pagado',
         fecha_pago: new Date().toISOString(),
         visita_gratis: canjearVisitaGratis,
+        sucursal_id: sucursalActiva?.id,
       };
       if (codigoReferencia.trim()) {
         payload.codigo_referencia = codigoReferencia.trim();

@@ -8,6 +8,7 @@ import { CobroDrawer } from './CobroDrawer';
 import { TicketPrint } from './TicketPrint';
 import { ExportModal } from '../../../components/ExportModal';
 import type { CsvColumn } from '../../../lib/exportCsv';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface CitaCaja {
   id: string;
@@ -43,6 +44,7 @@ interface PagoRegistrado {
 }
 
 export function CobrosPendientesTab() {
+  const { sucursalActiva } = useBranchStore();
   const [citas, setCitas] = useState<CitaCaja[]>([]);
   const [pagos, setPagos] = useState<PagoRegistrado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -157,8 +159,8 @@ export function CobrosPendientesTab() {
   const fetchData = async () => {
     setIsLoading(true);
 
-    // Fetch citas de hoy, excluyendo Cancelada y No Asistió
-    const { data: citasData, error: citasError } = await supabase
+    // Fetch citas, excluyendo Cancelada y No Asistió
+    let citasQuery = supabase
       .from('citas')
       .select(`
         id,
@@ -186,6 +188,12 @@ export function CobrosPendientesTab() {
       .not('estado', 'in', '("Cancelada","No Asistió")')
       .order('fecha_cita', { ascending: true })
       .order('hora_cita', { ascending: true });
+
+    if (sucursalActiva?.id) {
+      citasQuery = citasQuery.eq('sucursal_id', sucursalActiva.id);
+    }
+
+    const { data: citasData, error: citasError } = await citasQuery;
 
     if (citasError) {
       toast.error('Error cargando citas del día');
