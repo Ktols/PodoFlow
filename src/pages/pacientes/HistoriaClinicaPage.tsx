@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer } from 'lucide-react';
+import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer, ShoppingCart, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { type Paciente } from './PacientesPage';
 import { AtencionDrawer } from './components/AtencionDrawer';
+import { StampCard } from '../../components/StampCard';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -11,13 +12,18 @@ export interface Atencion {
   id: string;
   paciente_id: string;
   motivo_consulta: string;
+  diagnostico?: string | null;
   tratamiento: string | null;
+  recomendaciones?: string | null;
   indicaciones: string | null;
   fotos: string[] | null;
   created_at: string;
   evaluacion_piel?: string[];
   evaluacion_unas?: string[];
   tratamientos_realizados?: string[];
+  productos_usados?: string[];
+  medicamentos_recetados?: string[];
+  proxima_cita?: string | null;
   podologo_id?: string;
   podologos?: {
     id: string;
@@ -39,6 +45,9 @@ export function HistoriaClinicaPage() {
   const [originCitaId, setOriginCitaId] = useState<string | null>(null);
   const [selectedAtencion, setSelectedAtencion] = useState<Atencion | null>(null);
   const [selectedImage, setSelectedImage] = useState<{url: string, atencion: Atencion} | null>(null);
+  const [activeTab, setActiveTab] = useState<'historial' | 'compras'>('historial');
+  const [ventas, setVentas] = useState<any[]>([]);
+  const [ventasLoading, setVentasLoading] = useState(false);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -85,6 +94,24 @@ export function HistoriaClinicaPage() {
   useEffect(() => {
     fetchHistoria();
   }, [id]);
+
+  const fetchVentas = async () => {
+    if (!id) return;
+    setVentasLoading(true);
+    const { data } = await supabase
+      .from('ventas')
+      .select('*')
+      .eq('paciente_id', id)
+      .order('created_at', { ascending: false });
+    if (data) setVentas(data);
+    setVentasLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'compras' && ventas.length === 0 && !ventasLoading) {
+      fetchVentas();
+    }
+  }, [activeTab]);
 
   if (isLoading) {
     return (
@@ -175,6 +202,11 @@ export function HistoriaClinicaPage() {
         </div>
       </div>
 
+      {/* Loyalty Stamp Card */}
+      <div className="print:hidden">
+        <StampCard sellos={paciente.sellos || 0} sellosCanjeados={paciente.sellos_canjeados || 0} />
+      </div>
+
       {/* Panel de Perfil Clínico / Antecedentes */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 print:shadow-none print:border-gray-300 print:break-inside-avoid print:p-4">
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -235,22 +267,53 @@ export function HistoriaClinicaPage() {
         )}
       </div>
 
-      {/* Evolución (Timeline) */}
+      {/* Tabs: Historial / Compras */}
       <div className="mt-8">
-        <h2 className="text-xl font-bold text-secondary mb-6 flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-6 print:hidden">
+          <button
+            onClick={() => setActiveTab('historial')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all ${
+              activeTab === 'historial'
+                ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20'
+                : 'text-gray-400 hover:text-[#004975] hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Historial
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'historial' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+              {atenciones.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('compras')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all ${
+              activeTab === 'compras'
+                ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20'
+                : 'text-gray-400 hover:text-[#004975] hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Compras
+            {ventas.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'compras' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+                {ventas.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Print-only title */}
+        <h2 className="hidden print:flex text-xl font-bold text-secondary mb-6 items-center gap-2">
           <Clock className="w-5 h-5 text-gray-400" />
-          Historial de Evolución 
-          <span className="text-sm font-bold text-secondary px-2 py-0.5 bg-blue-50 border border-blue-100 rounded-full ml-2">
-            {atenciones.length} vis.
-          </span>
+          Historial de Evolución
         </h2>
 
-        {atenciones.length === 0 ? (
+        {activeTab === 'historial' && atenciones.length === 0 ? (
           <div className="text-center p-12 bg-white rounded-xl border border-gray-100 border-dashed print:border-none print:p-2">
             <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3 print:hidden" />
             <p className="text-gray-500 font-medium">Aún no hay atenciones registradas.</p>
           </div>
-        ) : (
+        ) : activeTab === 'historial' ? (
           <div className="relative border-l-2 border-gray-100 ml-3 md:ml-4 space-y-8 print:border-l-0 print:ml-0 print:space-y-4">
             {atenciones.map((atencion) => (
               <div key={atencion.id} className="relative pl-6 md:pl-8 group print:pl-0">
@@ -288,11 +351,16 @@ export function HistoriaClinicaPage() {
                   
                   <div className="space-y-5">
                     <div>
-                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1.5 flex items-center gap-2">
-                         Motivo de Consulta
-                      </h4>
+                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1.5">Motivo de Consulta</h4>
                       <p className="text-secondary font-semibold text-lg">{atencion.motivo_consulta}</p>
                     </div>
+
+                    {atencion.diagnostico && (
+                      <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100/50">
+                        <h4 className="text-xs font-bold text-blue-800 tracking-wider uppercase mb-1">Diagnóstico</h4>
+                        <p className="text-blue-900 text-sm whitespace-pre-wrap">{atencion.diagnostico}</p>
+                      </div>
+                    )}
 
                     {(atencion.evaluacion_piel?.length || atencion.evaluacion_unas?.length) ? (
                       <div>
@@ -328,10 +396,55 @@ export function HistoriaClinicaPage() {
                       )}
                     </div>
 
+                    {atencion.productos_usados && atencion.productos_usados.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Productos Utilizados</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {atencion.productos_usados.map(item => (
+                            <span key={item} className="bg-[#00C288]/10 text-[#004975] border border-[#00C288]/20 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {atencion.medicamentos_recetados && atencion.medicamentos_recetados.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Medicamentos Recetados</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {atencion.medicamentos_recetados.map(item => (
+                            <span key={item} className="bg-purple-50 text-purple-800 border border-purple-100 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {atencion.recomendaciones && (
+                      <div className="bg-green-50/50 rounded-lg p-3 border border-green-100/50">
+                        <h4 className="text-xs font-bold text-green-800 tracking-wider uppercase mb-1">Recomendaciones</h4>
+                        <p className="text-green-900 text-sm whitespace-pre-wrap">{atencion.recomendaciones}</p>
+                      </div>
+                    )}
+
                     {atencion.indicaciones && (
-                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 mt-4 print:color-adjust-exact">
-                        <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5">Indicaciones al Paciente (Casa)</h4>
+                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 print:color-adjust-exact">
+                        <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5">Indicaciones al Paciente</h4>
                         <p className="text-yellow-900 text-sm whitespace-pre-wrap">{atencion.indicaciones}</p>
+                      </div>
+                    )}
+
+                    {atencion.proxima_cita && (
+                      <div className="flex items-center gap-2 bg-[#00C288]/5 rounded-lg p-3 border border-[#00C288]/20">
+                        <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0" />
+                        <div>
+                          <span className="text-[10px] font-black text-[#00C288] uppercase tracking-wider">Próxima cita sugerida</span>
+                          <p className="text-sm font-bold text-[#004975]">
+                            {format(new Date(atencion.proxima_cita + 'T12:00:00'), "EEEE d 'de' MMMM, yyyy", { locale: es })}
+                          </p>
+                        </div>
                       </div>
                     )}
                     
@@ -362,7 +475,76 @@ export function HistoriaClinicaPage() {
               </div>
             ))}
           </div>
-        )}
+        ) : activeTab === 'compras' ? (
+          ventasLoading ? (
+            <div className="flex justify-center py-16">
+              <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00C288] rounded-full animate-spin" />
+            </div>
+          ) : ventas.length === 0 ? (
+            <div className="text-center p-12 bg-white rounded-xl border border-gray-100 border-dashed">
+              <ShoppingCart className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">Este paciente no tiene compras registradas.</p>
+              <p className="text-gray-400 text-sm mt-1">Las ventas realizadas desde Caja → Ventas aparecerán aquí.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Resumen */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total Compras</span>
+                  <p className="text-xl font-black text-[#004975] tabular-nums mt-1">{ventas.length}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total Gastado</span>
+                  <p className="text-xl font-black text-[#00C288] tabular-nums mt-1">S/ {ventas.reduce((s: number, v: any) => s + v.total, 0).toFixed(2)}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Productos Comprados</span>
+                  <p className="text-xl font-black text-[#004975] tabular-nums mt-1">{ventas.reduce((s: number, v: any) => s + (v.items || []).reduce((a: number, i: any) => a + i.cantidad, 0), 0)}</p>
+                </div>
+              </div>
+
+              {/* Lista de compras */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Fecha</th>
+                      <th className="text-left px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Productos</th>
+                      <th className="text-center px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Método</th>
+                      <th className="text-right px-5 py-3 text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ventas.map((venta: any, index: number) => (
+                      <tr key={venta.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                        <td className="px-5 py-3.5">
+                          <p className="font-bold text-[#004975] text-sm">{format(new Date(venta.created_at), "d MMM yyyy", { locale: es })}</p>
+                          <p className="text-[11px] font-bold text-gray-400">{format(new Date(venta.created_at), "hh:mm a")}</p>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex flex-wrap gap-1">
+                            {(venta.items || []).map((item: any, i: number) => (
+                              <span key={i} className="bg-[#00C288]/10 text-[#004975] border border-[#00C288]/20 px-2 py-0.5 rounded text-[11px] font-bold">
+                                <Package className="w-3 h-3 inline mr-1" />{item.nombre} ×{item.cantidad}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-600">{venta.metodo_pago}</span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <span className="font-black text-[#004975] tabular-nums">S/ {Number(venta.total).toFixed(2)}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : null}
       </div>
 
       {paciente && (

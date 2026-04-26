@@ -53,11 +53,12 @@ const getMetodoIcon = (metodo: string): string => {
 };
 
 export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
-  const comprobanteRef = useRef<HTMLDivElement>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const { sucursalActiva } = useBranchStore();
   const nombreEmpresa = sucursalActiva?.nombre_comercial || 'G&C Podología';
+  const comprobanteRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
+  // Folio para el título del documento (si existe data)
   const tempFolio = data?.numeroTicket
     ? 'TKT-' + String(data.numeroTicket).padStart(6, '0')
     : 'XXXXXX';
@@ -102,6 +103,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
         logging: false,
       });
 
+      // Convertir canvas a Blob
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob((b) => resolve(b), 'image/png')
       );
@@ -112,6 +114,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
         return;
       }
 
+      // Intentar copiar al portapapeles
       try {
         await navigator.clipboard.write([
           new ClipboardItem({ 'image/png': blob }),
@@ -122,6 +125,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
         );
       } catch (copyErr) {
         console.error('Error al copiar al portapapeles:', copyErr);
+        // Fallback: descargar si el clipboard no está disponible
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = `Comprobante_${folio}.png`;
@@ -134,11 +138,13 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
         );
       }
 
+      // Abrir WhatsApp Web con el teléfono del paciente
       const telefono = data.pacienteTelefono?.replace(/\D/g, '') || '';
       const mensaje = encodeURIComponent(
-        `Hola, adjunto tu comprobante de atención en ${nombreEmpresa}. Folio: ${folio}`
+        `Hola, adjunto tu comprobante de atención en G&C Podología. Folio: ${folio}`
       );
 
+      // Esperar un momento para que el usuario lea el toast antes de redirigir
       setTimeout(() => {
         if (telefono) {
           const telefonoFull = telefono.startsWith('51') ? telefono : `51${telefono}`;
@@ -164,6 +170,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
 
   return (
     <>
+      {/* Minimal print CSS: solo @page y limpiar fondos */}
       <style>{`
         @media print {
           @page { size: A4; margin: 0; }
@@ -172,9 +179,12 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
       `}</style>
 
       <div className="fixed inset-0 z-[99999] print:static print:block">
+        {/* Backdrop */}
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm print:hidden" onClick={onClose} />
 
+        {/* Panel */}
         <div className="absolute right-0 top-0 h-full w-full md:w-[680px] bg-gray-100 shadow-2xl z-[100000] flex flex-col animate-in slide-in-from-right print:static print:w-full print:h-auto print:shadow-none print:bg-white print:block">
+          {/* Header */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 print:hidden">
             <h2 className="text-lg font-black text-[#004975]">Comprobante de Pago</h2>
             <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
@@ -182,21 +192,26 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
             </button>
           </div>
 
+          {/* Scrollable Preview */}
           <div className="flex-1 overflow-y-auto p-6 print:p-0 print:overflow-visible">
+            {/* ===== COMPROBANTE PROFESIONAL ===== */}
             <div
               ref={comprobanteRef}
               className="bg-white rounded-lg shadow-lg mx-auto print:shadow-none print:rounded-none print:max-w-none print:w-full"
               style={{ maxWidth: '600px', fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}
             >
+              {/* === Header del Comprobante === */}
               <div className="flex items-start justify-between p-8 pb-5 border-b-2 border-[#004975]">
+                {/* Left: Brand */}
                 <div>
-                  <h1 className="text-2xl font-black text-[#004975] tracking-tight">{nombreEmpresa}</h1>
-                  <p className="text-[10px] font-bold text-[#004975]/50 uppercase tracking-[0.2em] mt-0.5">{sucursalActiva?.razon_social || 'Centro Podológico Especializado'}</p>
+                  <h1 className="text-2xl font-black text-[#004975] tracking-tight">G&C Podología</h1>
+                  <p className="text-[10px] font-bold text-[#004975]/50 uppercase tracking-[0.2em] mt-0.5">Centro Podológico Especializado</p>
                   <div className="mt-3 space-y-0.5">
-                    <p className="text-[10px] text-gray-400 font-medium">{sucursalActiva?.direccion || ''}</p>
-                    <p className="text-[10px] text-gray-400 font-medium">Tel: {sucursalActiva?.telefono || ''}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">Prolg. Av. Perú Cdra. 51 — Callao</p>
+                    <p className="text-[10px] text-gray-400 font-medium">Tel: 957 063 674</p>
                   </div>
                 </div>
+                {/* Right: Folio Box */}
                 <div className="text-right bg-[#004975]/5 rounded-lg px-5 py-3 border border-[#004975]/10">
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em]">Comprobante N°</p>
                   <p className="text-lg font-black text-[#004975] tabular-nums tracking-wider mt-0.5">{folio}</p>
@@ -207,6 +222,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                 </div>
               </div>
 
+              {/* === Datos del Paciente === */}
               <div className="px-8 py-5 bg-gray-50/50 border-b border-gray-100">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
@@ -228,6 +244,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                 </div>
               </div>
 
+              {/* === Tabla de Servicios === */}
               <div className="px-8 py-5">
                 <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                   <thead>
@@ -252,6 +269,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                   </tbody>
                 </table>
 
+                {/* Resumen de Pago */}
                 <div className="flex justify-end mt-4">
                   <div className="w-60">
                     <div className="flex justify-between py-1.5 text-xs">
@@ -274,6 +292,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                 </div>
               </div>
 
+              {/* === Detalle de Transacción === */}
               <div className="mx-8 px-5 py-4 bg-[#004975]/5 rounded-lg border border-[#004975]/10 mb-5">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-2">Detalle de Transacción</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
@@ -294,11 +313,12 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                 </div>
               </div>
 
+              {/* === Footer === */}
               <div className="px-8 py-4 border-t border-gray-200 bg-gray-50/80 rounded-b-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400">{nombreEmpresa}</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">{sucursalActiva?.direccion || ''} · Tel: {sucursalActiva?.telefono || ''}</p>
+                    <p className="text-[10px] font-bold text-gray-400">G&C Podología — Centro Podológico Especializado</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5">Prolg. Av. Perú Cdra. 51 — Callao · Tel: 957 063 674</p>
                   </div>
                   <p className="text-xs font-black text-[#00C288]">¡Gracias por su preferencia!</p>
                 </div>
@@ -306,6 +326,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
             </div>
           </div>
 
+          {/* Action Bar */}
           <div className="p-4 border-t border-gray-200 bg-white flex items-center justify-between gap-3 print:hidden">
             <button
               onClick={onClose}
