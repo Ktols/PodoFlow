@@ -329,7 +329,7 @@ export function Dashboard() {
                   }}
                   itemStyle={{ fontWeight: 800, color: '#004975' }}
                   labelStyle={{ color: '#94a3b8', marginBottom: '4px', fontWeight: 600 }}
-                  formatter={(value: number) => [`S/ ${value.toFixed(2)}`, 'Recaudado']}
+                  formatter={(value: any) => [`S/ ${Number(value || 0).toFixed(2)}`, 'Recaudado']}
                 />
                 <Area 
                   type="monotone" 

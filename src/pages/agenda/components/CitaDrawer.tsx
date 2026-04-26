@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle, Plus, CalendarDays, Clock, DollarSign, History, Activity } from 'lucide-react';
+import { X, Search, AlertTriangle, Plus, CalendarDays, Clock, DollarSign, History } from 'lucide-react';
 import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

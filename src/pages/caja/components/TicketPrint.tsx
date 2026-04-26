@@ -54,7 +54,6 @@ const getMetodoIcon = (metodo: string): string => {
 
 export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
   const { sucursalActiva } = useBranchStore();
-  const nombreEmpresa = sucursalActiva?.nombre_comercial || 'G&C Podología';
   const comprobanteRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -141,7 +140,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
       // Abrir WhatsApp Web con el teléfono del paciente
       const telefono = data.pacienteTelefono?.replace(/\D/g, '') || '';
       const mensaje = encodeURIComponent(
-        `Hola, adjunto tu comprobante de atención en G&C Podología. Folio: ${folio}`
+        `Hola, adjunto tu comprobante de atención en ${sucursalActiva?.nombre_comercial || 'G&C Podología'}. Folio: ${folio}`
       );
 
       // Esperar un momento para que el usuario lea el toast antes de redirigir

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Clock, User, Stethoscope, CheckCircle2, Receipt, Calendar, Printer, Download, Search, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { format, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CobroDrawer } from './CobroDrawer';
 import { TicketPrint } from './TicketPrint';
