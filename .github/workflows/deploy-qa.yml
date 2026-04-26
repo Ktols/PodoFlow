@@ -11,6 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Dependencies
+        run: |
+          rm -f package-lock.json
+          npm install
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
