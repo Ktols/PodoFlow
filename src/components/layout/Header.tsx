@@ -117,7 +117,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <button className="p-2 text-gray-500 hover:text-primary transition-colors">
           <Bell className="w-5 h-5" />
         </button>
-        <div className="hidden md:flex items-center gap-3 border-l pl-4 border-gray-200">
+        <div className="flex items-center gap-3 md:border-l md:pl-4 border-gray-200">
           <UserButton
             appearance={{
               elements: {
@@ -125,7 +125,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               },
             }}
           />
-          <div className="text-right">
+          <div className="hidden md:block text-right">
             <span className="text-sm font-medium text-secondary block leading-tight">
               {user?.firstName || perfil?.nombres || 'Gestor'}
             </span>
