@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search, Download, Gift } from 'lucide-react';
 import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { supabase } from '../../lib/supabase';
-import { format, addDays, subDays } from 'date-fns';
+import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
+import { ExportModal } from '../../components/ExportModal';
+import { CLINIC_INFO, SELLOS_PARA_GRATIS } from '../../config/clinicData';
 import { useBranchStore } from '../../stores/branchStore';
+import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface CitaList {
   id: string;
@@ -22,11 +25,14 @@ export interface CitaList {
     apellidos: string;
     telefono: string | null;
     numero_documento: string | null;
+    sellos?: number;
   };
   podologos: {
     nombres: string;
     color_etiqueta: string;
   };
+  adelanto?: number;
+  adelanto_metodo_pago?: string | null;
 }
 
 const ESTADOS_MAP: Record<string, { color: string, border: string }> = {
@@ -46,6 +52,7 @@ export function AgendaPage() {
   const [citas, setCitas] = useState<CitaList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  const { sucursalActiva } = useBranchStore();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [citaEnEdicion, setCitaEnEdicion] = useState<CitaList | null>(null);
   const [citaAConfirmar, setCitaAConfirmar] = useState<{id: string, nuevoEstado: string} | null>(null);
@@ -55,7 +62,42 @@ export function AgendaPage() {
   const [selectedEspecialista, setSelectedEspecialista] = useState('');
   const [selectedEstado, setSelectedEstado] = useState('');
   const [isGlobalSearch, setIsGlobalSearch] = useState(false);
-  const { sucursalActiva } = useBranchStore();
+
+  // Export state
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportDesde, setExportDesde] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [exportHasta, setExportHasta] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [exportEspecialista, setExportEspecialista] = useState('');
+  const [exportEstado, setExportEstado] = useState('');
+  const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const citaCsvColumns: CsvColumn<CitaList>[] = [
+    { key: 'fecha_cita', header: 'Fecha' },
+    { key: 'hora_cita', header: 'Hora', format: (r) => formatearHora(r.hora_cita) },
+    { key: '', header: 'Paciente', format: (r) => `${r.pacientes.nombres} ${r.pacientes.apellidos}` },
+    { key: 'pacientes.numero_documento', header: 'Documento' },
+    { key: 'pacientes.telefono', header: 'Teléfono' },
+    { key: 'motivo', header: 'Motivo' },
+    { key: '', header: 'Especialista', format: (r) => r.podologos?.nombres || '' },
+    { key: 'estado', header: 'Estado' },
+  ];
+
+  const fetchExportCitas = async (): Promise<CitaList[]> => {
+    let query = supabase
+      .from('citas')
+      .select(`*, pacientes (nombres, apellidos, telefono, numero_documento), podologos (nombres, color_etiqueta)`)
+      .gte('fecha_cita', exportDesde)
+      .lte('fecha_cita', exportHasta)
+      .order('fecha_cita')
+      .order('hora_cita');
+
+    if (exportEspecialista) query = query.eq('podologo_id', exportEspecialista);
+    if (exportEstado) query = query.eq('estado', exportEstado);
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data as unknown as CitaList[];
+  };
 
   useEffect(() => {
     const fetchPodologos = async () => {
@@ -76,7 +118,8 @@ export function AgendaPage() {
           nombres,
           apellidos,
           telefono,
-          numero_documento
+          numero_documento,
+          sellos
         ),
         podologos (
           nombres,
@@ -158,22 +201,22 @@ export function AgendaPage() {
     let mensaje = "";
     
     if (cita.estado === 'Cancelada') {
-      mensaje = `Hola ${nombre}, te escribimos de ${sucursalActiva?.nombre_comercial || 'la clínica'}.
+      mensaje = `Hola ${nombre}, te escribimos de ${sucursalActiva?.nombre_comercial || CLINIC_INFO.nombre}.
 
 Te confirmamos que tu cita de hoy a las ${hora} hrs ha sido cancelada en nuestro sistema.
 
-Si deseas reprogramarla para otra fecha, puedes contactarnos al ${sucursalActiva?.telefono || ''}.
+Si deseas reprogramarla para otra fecha, puedes contactarnos al ${sucursalActiva?.telefono || CLINIC_INFO.telefono}.
 
 ¡Gracias por avisarnos!`;
     } else {
-      mensaje = `Hola ${nombre}, te saludamos de ${sucursalActiva?.nombre_comercial || 'la clínica'}.
+      mensaje = `Hola ${nombre}, te saludamos de ${sucursalActiva?.nombre_comercial || CLINIC_INFO.nombre}.
 
 Queremos recordarte tu cita para hoy a las ${hora} hrs.
 
-Ubicación: ${sucursalActiva?.direccion || ''}
-Contacto: ${sucursalActiva?.telefono || ''}
+Ubicación: ${sucursalActiva?.direccion || CLINIC_INFO.direccion}
+Contacto: ${sucursalActiva?.telefono || CLINIC_INFO.telefono}
 
-Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este mensaje para cederle el espacio a otro paciente.
+${CLINIC_INFO.mensaje_pie}
 
 ¡Te esperamos!`;
     }
@@ -186,50 +229,113 @@ Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
       
       {/* Header Calendario Activo */}
-      <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-4 lg:p-6 flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-6">
         
         {/* Date Navigator */}
-        <div className="flex w-full md:w-auto items-center justify-between md:justify-start gap-3 bg-gray-50/80 rounded-2xl p-2 border border-gray-100">
-          <button 
-            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group"
-            title="Día Anterior"
-          >
-            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
-          </button>
-          
-          <div className="px-6 py-2.5 flex items-center justify-center gap-4 bg-white shadow-sm rounded-xl border border-gray-200 min-w-[200px]">
-            <CalendarIcon className="w-6 h-6 text-[#00C288]" />
-            <div className="flex flex-col items-start leading-tight">
-              <span className="text-[15px] font-black text-[#004975] uppercase tracking-wider">
-                {format(selectedDate, "EEEE d", { locale: es })}
-              </span>
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                 {format(selectedDate, "MMMM, yyyy", { locale: es })}
-              </span>
-            </div>
+        <div className="flex flex-col w-full lg:w-auto lg:min-w-0 lg:flex-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 overflow-hidden gap-2">
+          {/* Month selector */}
+          <div className="flex items-center justify-between px-1">
+            <button
+              onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
+              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
+              title="Mes Anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-black text-[#004975] capitalize tracking-wide">
+              {format(selectedDate, "MMMM yyyy", { locale: es })}
+            </span>
+            <button
+              onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
+              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
+              title="Mes Siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
-          <button 
-            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-            className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group"
-            title="Día Siguiente"
-          >
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
-          </button>
+          {/* Hoy shortcut */}
+          {!isSameDay(selectedDate, new Date()) && (
+            <button
+              onClick={() => setSelectedDate(new Date())}
+              className="self-center text-[11px] font-black text-[#00C288] uppercase tracking-wider bg-[#00C288]/10 hover:bg-[#00C288]/20 px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <CalendarIcon className="w-3.5 h-3.5" />
+              Ir a hoy
+            </button>
+          )}
+
+          {/* Week day strip */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedDate(subDays(selectedDate, 7))}
+              className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+              title="Semana Anterior"
+            >
+              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+
+            <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide">
+              {Array.from({ length: 7 }, (_, i) => {
+                const day = addDays(startOfDay(selectedDate), i - 3);
+                const isSelected = isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, new Date());
+                return (
+                  <button
+                    key={day.toISOString()}
+                    onClick={() => setSelectedDate(day)}
+                    className={`flex flex-col items-center flex-1 py-2 rounded-xl border transition-all min-w-[44px] ${
+                      isSelected
+                        ? 'bg-[#00C288] text-white border-[#00C288] shadow-md shadow-[#00C288]/20 scale-105'
+                        : isToday
+                          ? 'bg-white text-[#004975] border-[#00C288]/40 hover:border-[#00C288] hover:shadow-sm'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/80' : isToday ? 'text-[#00C288]' : 'text-gray-400'}`}>
+                      {format(day, "EEE", { locale: es })}
+                    </span>
+                    <span className={`text-lg font-black leading-tight ${isSelected ? 'text-white' : ''}`}>
+                      {format(day, "d")}
+                    </span>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                      {format(day, "MMM", { locale: es })}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+              className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+              title="Semana Siguiente"
+            >
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
         </div>
 
         {/* Global Actions */}
-        <button 
-          onClick={() => {
-            setCitaEnEdicion(null);
-            setIsDrawerOpen(true);
-          }}
-          className="w-full md:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
-        >
-          <Plus className="w-5 h-5" />
-          NUEVO TURNO
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="p-3.5 bg-white hover:bg-gray-50 text-[#004975] rounded-xl border border-gray-200 shadow-sm transition-colors"
+            title="Exportar Agenda"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              setCitaEnEdicion(null);
+              setIsDrawerOpen(true);
+            }}
+            className="w-full lg:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
+          >
+            <Plus className="w-5 h-5" />
+            NUEVO TURNO
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -391,13 +497,13 @@ Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este
                 return (
                   <div 
                     key={cita.id} 
-                    className={`rounded-2xl border shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] p-5 md:p-6 hover:shadow-lg transition-all relative overflow-hidden flex flex-col md:flex-row gap-5 md:gap-8 items-start md:items-center ${esEstadoFinal ? 'opacity-75 bg-gray-50 ' + style.border : esTurnoFantasma ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : isPasada ? ('opacity-60 bg-gray-50 grayscale-[0.3] ' + style.border) : ('bg-white ' + style.border)} ${enCurso ? 'ring-2 ring-[#00C288] ring-offset-2' : ''}`}
+                    className={`rounded-2xl border shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] p-5 lg:p-6 hover:shadow-lg transition-all relative overflow-hidden flex flex-col xl:flex-row gap-4 xl:gap-8 items-start xl:items-center ${esEstadoFinal ? 'opacity-75 bg-gray-50 ' + style.border : esTurnoFantasma ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : isPasada ? ('opacity-60 bg-gray-50 grayscale-[0.3] ' + style.border) : ('bg-white ' + style.border)} ${enCurso ? 'ring-2 ring-[#00C288] ring-offset-2' : ''}`}
                   >
                 {/* Timeline Color bar */}
                 <div className={`absolute left-0 inset-y-0 w-2.5 ${style.color.split(' ')[0]}`} />
 
                 {/* Hora Analógica */}
-                <div className="flex flex-row items-center gap-3 ml-3 md:w-36 shrink-0">
+                <div className="flex flex-row items-center gap-3 ml-3 xl:w-36 shrink-0">
                   <div className={`p-2.5 rounded-xl ${style.color}`}>
                     <Clock className="w-6 h-6 border-transparent" />
                   </div>
@@ -436,11 +542,11 @@ Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este
                   <p className="text-sm font-bold text-gray-500 pl-7 truncate pr-4">{cita.motivo}</p>
                   
                   {cita.podologos && (
-                    <div className="flex items-center gap-1.5 mt-3 pl-7">
-                      <div 
+                    <div className="flex items-center gap-1.5 mt-3 pl-7 flex-wrap">
+                      <div
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm"
-                        style={{ 
-                          backgroundColor: `${cita.podologos.color_etiqueta}12`, 
+                        style={{
+                          backgroundColor: `${cita.podologos.color_etiqueta}12`,
                           color: cita.podologos.color_etiqueta,
                           borderColor: `${cita.podologos.color_etiqueta}30`
                         }}
@@ -448,6 +554,18 @@ Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este
                         <Stethoscope className="w-4 h-4" />
                         <span>Atiende: {cita.podologos.nombres}</span>
                       </div>
+                      {Number(cita.adelanto || 0) > 0 && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm bg-[#00C288]/10 text-[#00C288] border-[#00C288]/20">
+                          Adelanto: S/ {Number(cita.adelanto).toFixed(2)}
+                          {cita.adelanto_metodo_pago && <span className="text-[9px] font-bold text-[#004975]/50 normal-case">({cita.adelanto_metodo_pago})</span>}
+                        </div>
+                      )}
+                      {Number(cita.pacientes.sellos || 0) >= SELLOS_PARA_GRATIS && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm bg-gradient-to-r from-[#00C288] to-[#00ab78] text-white border-[#00C288] animate-pulse">
+                          <Gift className="w-3.5 h-3.5" />
+                          Visita Gratis Disponible
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -497,7 +615,7 @@ Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este
                 </div>
 
                 {/* Native Dropdown Fases */}
-                <div className="relative shrink-0 w-full md:w-56" onClick={(e) => e.stopPropagation()}>
+                <div className="relative shrink-0 w-full xl:w-56" onClick={(e) => e.stopPropagation()}>
                   <div className={`relative rounded-xl border shadow-sm ${style.color} ${style.border} ${!esEstadoFinal ? 'transition-all hover:scale-[1.02]' : 'opacity-80'}`}>
                     <select
                       value={cita.estado}
@@ -577,6 +695,50 @@ Si deseas modificar o cancelar tu turno, por favor avísanos respondiendo a este
           </div>
         </div>
       )}
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        title="Exportar Agenda"
+        columns={citaCsvColumns}
+        fetchData={fetchExportCitas}
+        filename={`agenda_${exportDesde}_${exportHasta}`}
+        onFiltersChanged={exportFilterTrigger}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-[#004975] mb-1.5">Desde</label>
+            <input type="date" value={exportDesde} onChange={(e) => { setExportDesde(e.target.value); setExportFilterTrigger(n => n + 1); }}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#004975] mb-1.5">Hasta</label>
+            <input type="date" value={exportHasta} onChange={(e) => { setExportHasta(e.target.value); setExportFilterTrigger(n => n + 1); }}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Especialista</label>
+          <select value={exportEspecialista} onChange={(e) => { setExportEspecialista(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none">
+            <option value="">Todos</option>
+            {podologos.map(p => <option key={p.id} value={p.id}>{p.nombres}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Estado</label>
+          <select value={exportEstado} onChange={(e) => { setExportEstado(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none">
+            <option value="">Todos</option>
+            <option value="Programada">Programada</option>
+            <option value="Confirmada">Confirmada</option>
+            <option value="En Sala de Espera">En Sala de Espera</option>
+            <option value="Atendida">Atendida</option>
+            <option value="Cancelada">Cancelada</option>
+            <option value="No Asistió">No Asistió</option>
+          </select>
+        </div>
+      </ExportModal>
     </div>
   );
 }

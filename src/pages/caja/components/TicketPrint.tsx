@@ -53,6 +53,8 @@ const getMetodoIcon = (metodo: string): string => {
 };
 
 export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
+  const { sucursalActiva } = useBranchStore();
+  const nombreEmpresa = sucursalActiva?.nombre_comercial || 'G&C Podología';
   const comprobanteRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const { sucursalActiva } = useBranchStore();

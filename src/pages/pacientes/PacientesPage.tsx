@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, MoreVertical, Pencil, ClipboardList } from 'lucide-react';
+import { Plus, Search, MoreVertical, Pencil, ClipboardList, Download, Info } from 'lucide-react';
 import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { PacienteDrawer } from './components/PacienteDrawer';
+import { ExportModal } from '../../components/ExportModal';
 import { supabase } from '../../lib/supabase';
+import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface Paciente {
   id: string;
@@ -20,6 +22,8 @@ export interface Paciente {
   tratamiento_oncologico?: boolean;
   alergias_detalle?: string | null;
   sexo?: string | null;
+  sellos?: number;
+  sellos_canjeados?: number;
 }
 
 export function PacientesPage() {
@@ -30,15 +34,57 @@ export function PacientesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [visitCounts, setVisitCounts] = useState<Record<string, number>>({});
+  const [showLegend, setShowLegend] = useState(false);
+  const [exportAlertFilter, setExportAlertFilter] = useState('');
+  const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const pacienteCsvColumns: CsvColumn<Paciente>[] = [
+    { key: 'tipo_documento', header: 'Tipo Doc.' },
+    { key: 'numero_documento', header: 'Nro. Documento' },
+    { key: 'nombres', header: 'Nombres' },
+    { key: 'apellidos', header: 'Apellidos' },
+    { key: 'telefono', header: 'Teléfono' },
+    { key: 'sexo', header: 'Sexo' },
+    { key: 'fecha_nacimiento', header: 'Fecha Nacimiento' },
+    { key: '', header: 'Diabetes', format: (r) => r.diabetes ? 'Sí' : 'No' },
+    { key: '', header: 'Hipertensión', format: (r) => r.hipertension ? 'Sí' : 'No' },
+    { key: '', header: 'Enf. Vascular', format: (r) => r.enfermedad_vascular ? 'Sí' : 'No' },
+    { key: '', header: 'Trat. Oncológico', format: (r) => r.tratamiento_oncologico ? 'Sí' : 'No' },
+    { key: 'alergias_alertas', header: 'Alergias/Alertas' },
+    { key: 'alergias_detalle', header: 'Detalle Alergias' },
+  ];
+
+  const fetchExportPacientes = async (): Promise<Paciente[]> => {
+    const { data, error } = await supabase.from('pacientes').select('*').order('apellidos');
+    if (error || !data) return [];
+    if (exportAlertFilter === 'con_alertas') {
+      return data.filter(p => p.alergias_alertas || p.diabetes || p.hipertension || p.enfermedad_vascular || p.tratamiento_oncologico || p.alergias_detalle);
+    }
+    if (exportAlertFilter === 'sin_alertas') {
+      return data.filter(p => !p.alergias_alertas && !p.diabetes && !p.hipertension && !p.enfermedad_vascular && !p.tratamiento_oncologico && !p.alergias_detalle);
+    }
+    return data;
+  };
 
   const fetchPacientes = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('pacientes')
-      .select('*')
+      .select('*, atenciones(count)')
       .order('created_at', { ascending: false });
-    
-    if (data) setPacientes(data);
+
+    if (data) {
+      const counts: Record<string, number> = {};
+      const cleaned = data.map((p: any) => {
+        counts[p.id] = p.atenciones?.[0]?.count || 0;
+        const { atenciones: _, ...rest } = p;
+        return rest;
+      });
+      setPacientes(cleaned);
+      setVisitCounts(counts);
+    }
     if (error) console.error("Error cargando pacientes:", error);
     setIsLoading(false);
   };
@@ -72,6 +118,18 @@ export function PacientesPage() {
     window.open(`https://wa.me/${cleaned}`, '_blank');
   };
 
+  const PATIENT_CATEGORIES = [
+    { key: 'nuevo', label: 'Nuevo', min: 0, max: 0, color: 'bg-blue-50 text-blue-700 border-blue-200', desc: 'Sin visitas registradas' },
+    { key: 'inicial', label: 'Inicial', min: 1, max: 1, color: 'bg-sky-50 text-sky-700 border-sky-200', desc: '1 visita realizada' },
+    { key: 'regular', label: 'Regular', min: 2, max: 4, color: 'bg-amber-50 text-amber-700 border-amber-200', desc: '2 a 4 visitas' },
+    { key: 'recurrente', label: 'Recurrente', min: 5, max: 9, color: 'bg-[#00C288]/10 text-[#00C288] border-[#00C288]/30', desc: '5 a 9 visitas' },
+    { key: 'fiel', label: 'Fiel', min: 10, max: Infinity, color: 'bg-purple-50 text-purple-700 border-purple-200', desc: '10+ visitas' },
+  ];
+
+  const getPatientCategory = (visits: number) => {
+    return PATIENT_CATEGORIES.find(c => visits >= c.min && visits <= c.max) || PATIENT_CATEGORIES[0];
+  };
+
   return (
     <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-500">
       {/* Header View */}
@@ -81,16 +139,25 @@ export function PacientesPage() {
           <p className="text-gray-500 mt-1">Gestión y registro de historias clínicas</p>
         </div>
         
-        <button 
-          onClick={() => {
-            setSelectedPatient(null);
-            setIsDrawerOpen(true);
-          }}
-          className="bg-primary hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-md transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Nuevo Paciente</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar
+          </button>
+          <button
+            onClick={() => {
+              setSelectedPatient(null);
+              setIsDrawerOpen(true);
+            }}
+            className="bg-primary hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-md transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Nuevo Paciente</span>
+          </button>
+        </div>
       </div>
 
       {/* Toolbox (Search) */}
@@ -115,15 +182,40 @@ export function PacientesPage() {
               <tr className="bg-gray-50 border-b border-gray-100 text-sm text-gray-500">
                 <th className="p-4 font-semibold text-secondary">Documento</th>
                 <th className="p-4 font-semibold text-secondary">Paciente</th>
+                <th className="p-4 font-semibold text-secondary">
+                  <div className="flex items-center gap-1.5">
+                    Estado
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowLegend(!showLegend); }}
+                      className="p-0.5 text-gray-400 hover:text-[#004975] transition-colors rounded"
+                      title="Ver leyenda de estados"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </th>
                 <th className="p-4 font-semibold text-secondary">Teléfono</th>
                 <th className="p-4 font-semibold text-secondary">Alertas</th>
                 <th className="p-4 font-semibold text-right text-secondary w-20">Acciones</th>
               </tr>
+              {showLegend && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-3 bg-[#004975]/5 border-b border-[#004975]/10">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {PATIENT_CATEGORIES.map(cat => (
+                        <span key={cat.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${cat.color}`}>
+                          {cat.label} <span className="font-normal opacity-70">— {cat.desc}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="p-12 text-center text-gray-500">
+                  <td colSpan={6} className="p-12 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-10 h-10 border-4 border-gray-200 border-t-primary rounded-full animate-spin mb-4" />
                       <p className="font-medium text-lg text-secondary">Cargando pacientes...</p>
@@ -132,7 +224,7 @@ export function PacientesPage() {
                 </tr>
               ) : filteredPacientes.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-16 text-center text-gray-400">
+                  <td colSpan={6} className="p-16 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                         <Search className="w-10 h-10 text-gray-300" />
@@ -157,6 +249,18 @@ export function PacientesPage() {
                     </td>
                     <td className="p-4">
                       <span className="font-medium text-secondary">{paciente.nombres} {paciente.apellidos}</span>
+                    </td>
+                    <td className="p-4">
+                      {(() => {
+                        const visits = visitCounts[paciente.id] || 0;
+                        const cat = getPatientCategory(visits);
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${cat.color}`}>
+                            {cat.label}
+                            <span className="ml-1.5 text-[9px] font-bold opacity-60 normal-case">({visits} vis.)</span>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="p-4 text-gray-600">
                       {paciente.telefono || '-'}
@@ -235,12 +339,35 @@ export function PacientesPage() {
         </div>
       </div>
 
-      <PacienteDrawer 
-        isOpen={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
+      <PacienteDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
         onSuccess={fetchPacientes}
         patient={selectedPatient}
       />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => { setIsExportOpen(false); setExportAlertFilter(''); }}
+        title="Exportar Pacientes"
+        columns={pacienteCsvColumns}
+        fetchData={fetchExportPacientes}
+        filename={`pacientes_${new Date().toISOString().split('T')[0]}`}
+        onFiltersChanged={exportFilterTrigger}
+      >
+        <div>
+          <label className="block text-xs font-bold text-[#004975] mb-1.5">Condición médica</label>
+          <select
+            value={exportAlertFilter}
+            onChange={(e) => { setExportAlertFilter(e.target.value); setExportFilterTrigger(n => n + 1); }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none"
+          >
+            <option value="">Todos los pacientes</option>
+            <option value="con_alertas">Con alertas médicas</option>
+            <option value="sin_alertas">Sin alertas médicas</option>
+          </select>
+        </div>
+      </ExportModal>
     </div>
   );
 }
