@@ -190,7 +190,7 @@ export function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-[#004975] tracking-tight">
-            ¡Hola, {sucursalActiva?.nombre_comercial}! 👋
+            ¡Hola, {sucursalActiva?.nombre_comercial}!
           </h1>
           <p className="text-gray-500 font-medium mt-1">Aquí tienes un resumen de lo que sucede hoy en tu sede.</p>
         </div>
