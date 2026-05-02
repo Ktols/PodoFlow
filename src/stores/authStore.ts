@@ -38,8 +38,20 @@ export const useAuthStore = create<AuthState>((set) => ({
           .single();
 
         if (!emailError && perfilPorEmail) {
-          // Usar el perfil existente sin modificar la clave primaria `perfiles.id`.
-          // Cambiar el PK a un identificador externo (Clerk) puede romper FKs relacionadas.
+          // Si el ID aún es un ID temporal (pending_...), lo actualizamos al ID de Clerk
+          // Esto es seguro porque la FK en usuarios_sucursales tiene ON UPDATE CASCADE
+          if (perfilPorEmail.id.startsWith('pending_')) {
+            const { error: updateError } = await supabase
+              .from('perfiles')
+              .update({ id: clerkUserId })
+              .eq('id', perfilPorEmail.id);
+            
+            if (!updateError) {
+              perfilPorEmail.id = clerkUserId;
+            } else {
+              console.error('Error al sincronizar el ID de Clerk con el perfil:', updateError);
+            }
+          }
           data = perfilPorEmail;
           error = null;
         }
