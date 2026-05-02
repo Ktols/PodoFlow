@@ -5,26 +5,11 @@ import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { PacienteDrawer } from './components/PacienteDrawer';
 import { ExportModal } from '../../components/ExportModal';
 import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../stores/authStore';
+import { toast } from 'react-hot-toast';
 import type { CsvColumn } from '../../lib/exportCsv';
-
-export interface Paciente {
-  id: string;
-  tipo_documento: string;
-  numero_documento: string;
-  nombres: string;
-  apellidos: string;
-  telefono: string | null;
-  alergias_alertas: string | null;
-  fecha_nacimiento?: string | null;
-  diabetes?: boolean;
-  hipertension?: boolean;
-  enfermedad_vascular?: boolean;
-  tratamiento_oncologico?: boolean;
-  alergias_detalle?: string | null;
-  sexo?: string | null;
-  sellos?: number;
-  sellos_canjeados?: number;
-}
+import type { Paciente } from '../../types/entities';
+import { PATIENT_CATEGORIES } from '../../constants';
 
 export function PacientesPage() {
   const navigate = useNavigate();
@@ -39,6 +24,10 @@ export function PacientesPage() {
   const [showLegend, setShowLegend] = useState(false);
   const [exportAlertFilter, setExportAlertFilter] = useState('');
   const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const { perfil } = useAuthStore();
+  const isDueno = perfil?.rol_nombre === 'dueno';
+  const isPodologo = perfil?.rol_nombre === 'podologo';
 
   const pacienteCsvColumns: CsvColumn<Paciente>[] = [
     { key: 'tipo_documento', header: 'Tipo Doc.' },
@@ -85,7 +74,10 @@ export function PacientesPage() {
       setPacientes(cleaned);
       setVisitCounts(counts);
     }
-    if (error) console.error("Error cargando pacientes:", error);
+    if (error) {
+      console.error("Error cargando pacientes:", error);
+      toast.error('Error al cargar los pacientes');
+    }
     setIsLoading(false);
   };
 
@@ -118,14 +110,6 @@ export function PacientesPage() {
     window.open(`https://wa.me/${cleaned}`, '_blank');
   };
 
-  const PATIENT_CATEGORIES = [
-    { key: 'nuevo', label: 'Nuevo', min: 0, max: 0, color: 'bg-blue-50 text-blue-700 border-blue-200', desc: 'Sin visitas registradas' },
-    { key: 'inicial', label: 'Inicial', min: 1, max: 1, color: 'bg-sky-50 text-sky-700 border-sky-200', desc: '1 visita realizada' },
-    { key: 'regular', label: 'Regular', min: 2, max: 4, color: 'bg-amber-50 text-amber-700 border-amber-200', desc: '2 a 4 visitas' },
-    { key: 'recurrente', label: 'Recurrente', min: 5, max: 9, color: 'bg-[#00C288]/10 text-[#00C288] border-[#00C288]/30', desc: '5 a 9 visitas' },
-    { key: 'fiel', label: 'Fiel', min: 10, max: Infinity, color: 'bg-purple-50 text-purple-700 border-purple-200', desc: '10+ visitas' },
-  ];
-
   const getPatientCategory = (visits: number) => {
     return PATIENT_CATEGORIES.find(c => visits >= c.min && visits <= c.max) || PATIENT_CATEGORIES[0];
   };
@@ -140,23 +124,27 @@ export function PacientesPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsExportOpen(true)}
-            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
-          <button
-            onClick={() => {
-              setSelectedPatient(null);
-              setIsDrawerOpen(true);
-            }}
-            className="bg-primary hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-md transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Nuevo Paciente</span>
-          </button>
+          {isDueno && (
+            <button
+              onClick={() => setIsExportOpen(true)}
+              className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Exportar
+            </button>
+          )}
+          {!isPodologo && (
+            <button
+              onClick={() => {
+                setSelectedPatient(null);
+                setIsDrawerOpen(true);
+              }}
+              className="bg-primary hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-md transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Nuevo Paciente</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -263,7 +251,7 @@ export function PacientesPage() {
                       })()}
                     </td>
                     <td className="p-4 text-gray-600">
-                      {paciente.telefono || '-'}
+                      {isPodologo ? '***' : (paciente.telefono || '-')}
                     </td>
                     <td className="p-4">
                       {(paciente.alergias_alertas || paciente.diabetes || paciente.hipertension || paciente.enfermedad_vascular || paciente.tratamiento_oncologico || paciente.alergias_detalle) ? (
@@ -276,7 +264,7 @@ export function PacientesPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {paciente.telefono && (
+                        {!isPodologo && paciente.telefono && (
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -304,18 +292,20 @@ export function PacientesPage() {
                               className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedPatient(paciente);
-                                  setIsDrawerOpen(true);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors border-b border-gray-50"
-                              >
-                                <Pencil className="w-4 h-4 text-gray-400" />
-                                Editar Datos Básicos
-                              </button>
+                              {!isPodologo && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPatient(paciente);
+                                    setIsDrawerOpen(true);
+                                    setActiveMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors border-b border-gray-50"
+                                >
+                                  <Pencil className="w-4 h-4 text-gray-400" />
+                                  Editar Datos Básicos
+                                </button>
+                              )}
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();

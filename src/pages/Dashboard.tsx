@@ -20,6 +20,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 import { format, startOfDay, endOfDay, subDays, parseISO, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useBranchStore } from '../stores/branchStore';
@@ -161,6 +162,7 @@ export function Dashboard() {
 
     } catch (error) {
       console.error("Dashboard fetching error:", error);
+      toast.error('Error al cargar los datos del dashboard');
     } finally {
       setIsLoading(false);
     }

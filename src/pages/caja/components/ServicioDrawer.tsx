@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import type { Servicio } from './ListaPreciosTab';
+import type { Servicio } from '../../../types/entities';
 
 interface ServicioDrawerProps {
   isOpen: boolean;

@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { X, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { exportToCsv, type CsvColumn } from '../lib/exportCsv';
+import { toast } from 'react-hot-toast';
 
 interface ExportModalProps<T> {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export function ExportModal<T>({ isOpen, onClose, title, columns, fetchData, fil
       setHasFetched(true);
     } catch (err) {
       console.error('Error fetching export data:', err);
+      toast.error('Error al obtener los datos para exportar');
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +55,7 @@ export function ExportModal<T>({ isOpen, onClose, title, columns, fetchData, fil
         exportData = await fetchData();
       } catch (err) {
         console.error('Error fetching export data:', err);
+      toast.error('Error al obtener los datos para exportar');
         return;
       } finally {
         setIsLoading(false);

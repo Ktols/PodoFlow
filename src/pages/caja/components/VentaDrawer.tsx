@@ -2,14 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-
-interface VentaItem {
-  producto_id: string;
-  nombre: string;
-  precio_unitario: number;
-  cantidad: number;
-  subtotal: number;
-}
+import type { VentaItem } from '../../../types/entities';
+import { METODOS_PAGO_NOMBRES } from '../../../constants';
 
 interface PacienteMin {
   id: string;
@@ -30,8 +24,6 @@ interface VentaDrawerProps {
   onClose: () => void;
   onSuccess?: () => void;
 }
-
-const METODOS_PAGO = ['Efectivo', 'Yape', 'Plin', 'Tarjeta', 'Transferencia'];
 
 export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
   const [items, setItems] = useState<VentaItem[]>([]);
@@ -341,7 +333,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
               <label className="block text-xs font-bold text-[#004975] mb-1.5">Método de Pago</label>
               <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}
                 className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288]">
-                {METODOS_PAGO.map(m => <option key={m} value={m}>{m}</option>)}
+                {METODOS_PAGO_NOMBRES.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
           </div>

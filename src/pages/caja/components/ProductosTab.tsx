@@ -3,22 +3,11 @@ import { Plus, Pencil, Package, Search, Trash2, AlertTriangle, Download, X, Boxe
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ProductoDrawer } from './ProductoDrawer';
-import { CATEGORIAS_PRODUCTO } from '../constants';
+import { CATEGORIAS_PRODUCTO } from '../../../constants';
 import { ExportModal } from '../../../components/ExportModal';
+import { useAuthStore } from '../../../stores/authStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
-
-export interface Producto {
-  id: string;
-  codigo: string | null;
-  nombre: string;
-  descripcion: string | null;
-  categoria: string;
-  precio: number;
-  stock: number;
-  stock_minimo: number;
-  estado: boolean;
-  created_at?: string;
-}
+import type { Producto } from '../../../types/entities';
 
 type StockFilter = 'todos' | 'en_stock' | 'stock_bajo' | 'sin_stock';
 
@@ -33,6 +22,9 @@ export function ProductosTab() {
   const [productoEnEdicion, setProductoEnEdicion] = useState<Producto | null>(null);
   const [productoAEliminar, setProductoAEliminar] = useState<Producto | null>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
+
+  const { perfil } = useAuthStore();
+  const isDueno = perfil?.rol_nombre === 'dueno';
 
   const fetchProductos = async () => {
     setIsLoading(true);
@@ -201,13 +193,15 @@ export function ProductosTab() {
             <option value="activo">Activos</option>
             <option value="inactivo">Inactivos</option>
           </select>
-          <button
-            onClick={() => setIsExportOpen(true)}
-            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors shrink-0"
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
+          {isDueno && (
+            <button
+              onClick={() => setIsExportOpen(true)}
+              className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors shrink-0"
+            >
+              <Download className="w-4 h-4" />
+              Exportar
+            </button>
+          )}
           <button
             onClick={handleNew}
             className="bg-[#00C288] hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5 shrink-0"
