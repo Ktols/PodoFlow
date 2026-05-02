@@ -49,7 +49,7 @@ export const useBranchStore = create<BranchState>((set) => ({
           .select('sucursales (*)')
           .eq('usuario_id', usuarioId);
 
-        sucursales = (data as UsuarioSucursalRow[] || [])
+        sucursales = (data as unknown as UsuarioSucursalRow[] || [])
           .map((us) => us.sucursales)
           .filter((s): s is NonNullable<typeof s> => s !== null && s.activa);
       }

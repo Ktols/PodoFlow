@@ -157,7 +157,7 @@ export const CitasListPanel = React.memo(function CitasListPanel({
       <div className="grid grid-cols-1 gap-5">
         {renderCitas.map(cita => {
           const wafmt = formatPhone(cita.pacientes.telefono);
-          const style = ESTADOS_MAP[cita.estado] ?? ESTADOS_MAP['Programada'];
+          const style = ESTADOS_MAP[cita.estado as EstadoCita] ?? ESTADOS_MAP['Programada'];
           const esEstadoFinal = ESTADOS_FINALES.has(cita.estado as EstadoCita);
 
           const [hC, mC] = cita.hora_cita.split(':').map(Number);

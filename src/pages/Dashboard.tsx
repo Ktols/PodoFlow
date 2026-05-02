@@ -150,7 +150,7 @@ export function Dashboard() {
       });
 
       setLast7DaysRevenue(Array.from(chartMap.values()));
-      setNextAppointments(nextCitas || []);
+      setNextAppointments((nextCitas as unknown as ProximaCitaRow[]) || []);
 
       setStats({
         todayAppointments: appointmentsCount || 0,

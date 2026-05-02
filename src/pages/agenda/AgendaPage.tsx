@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Search, Download, X } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Search, Download, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
-import { CitasListPanel } from './components/CitasListPanel';
+import { CitasListPanel, formatearHora } from './components/CitasListPanel';
 import { ExportModal } from '../../components/ExportModal';
 import { useBranchStore } from '../../stores/branchStore';
 import type { CsvColumn } from '../../lib/exportCsv';
