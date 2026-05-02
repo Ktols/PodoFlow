@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Users, BriefcaseMedical, UserCog, ChevronDown, Receipt, Tag, Package, ShoppingCart, Store, UsersRound } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, BriefcaseMedical, UserCog, ChevronDown, Receipt, ShoppingCart, Store, UsersRound, Tag, Package } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
 interface SidebarProps {
@@ -10,8 +10,6 @@ interface SidebarProps {
 
 const cajaSubitems = [
   { tab: 'cobros', name: 'Cobros Pendientes', icon: Receipt },
-  { tab: 'precios', name: 'Lista de Precios', icon: Tag },
-  { tab: 'productos', name: 'Productos', icon: Package },
   { tab: 'ventas', name: 'Ventas', icon: ShoppingCart },
 ];
 
@@ -38,6 +36,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   const configRoutes = [
     { path: '/tienda', name: 'Tienda', icon: Store, visible: isDueno || isAdmin },
+    { path: '/servicios', name: 'Servicios', icon: Tag, visible: isDueno || isAdmin },
+    { path: '/inventario', name: 'Inventario', icon: Package, visible: isDueno || isAdmin },
     { path: '/usuarios', name: 'Usuarios', icon: UsersRound, visible: isDueno },
   ].filter(r => r.visible);
 
@@ -86,7 +86,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <nav className="flex-1 px-4 space-y-1">
         {renderLinks(mainRoutes)}
 
-        {/* Caja with dropdown */}
+        {/* Caja with dropdown — solo Cobros + Ventas */}
         {!isPodologo && (
           <div>
             <button
