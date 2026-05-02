@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer, ShoppingCart, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../stores/authStore';
 import { type Paciente } from './PacientesPage';
 import { AtencionDrawer } from './components/AtencionDrawer';
 import { StampCard } from '../../components/StampCard';
@@ -39,6 +40,9 @@ export function HistoriaClinicaPage() {
   const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [atenciones, setAtenciones] = useState<Atencion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { perfil } = useAuthStore();
+  const isPodologo = perfil?.rol_nombre === 'podologo';
   
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -174,20 +178,30 @@ export function HistoriaClinicaPage() {
             {paciente.nombres} {paciente.apellidos}
           </h1>
           <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-3 text-sm text-gray-600 font-medium print:mt-2">
-            <span className="bg-blue-50 text-[#004975] px-3 py-1 rounded-full border border-blue-100 print:border-none print:bg-transparent print:p-0 print:mr-4"><strong>Doc:</strong> {paciente.numero_documento} ({paciente.tipo_documento})</span>
-            <span className="bg-gray-50 px-3 py-1 rounded-full border border-gray-100 print:border-none print:bg-transparent print:p-0 print:mr-4"><strong>Tel:</strong> {paciente.telefono || '-'}</span>
-            <span className="bg-gray-50 px-3 py-1 rounded-full border border-gray-100 print:border-none print:bg-transparent print:p-0"><strong>Edad:</strong> {edad}</span>
+            <span className="bg-blue-50 text-[#004975] px-3 py-1 rounded-full border border-blue-100 print:border-none print:bg-transparent print:p-0 print:mr-4">
+              <strong>Doc:</strong> {isPodologo ? '***' : `${paciente.numero_documento} (${paciente.tipo_documento})`}
+            </span>
+            <span className="bg-gray-50 px-3 py-1 rounded-full border border-gray-100 print:border-none print:bg-transparent print:p-0 print:mr-4">
+              <strong>Tel:</strong> {isPodologo ? '***' : (paciente.telefono || '-')}
+            </span>
+            {!isPodologo && (
+              <span className="bg-gray-50 px-3 py-1 rounded-full border border-gray-100 print:border-none print:bg-transparent print:p-0">
+                <strong>Edad:</strong> {edad}
+              </span>
+            )}
           </div>
         </div>
         
         <div className="flex w-full md:w-auto flex-col md:flex-row gap-3 mt-2 md:mt-0 print:hidden">
-          <button 
-            onClick={() => window.print()}
-            className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 font-medium shadow-sm transition-colors whitespace-nowrap"
-          >
-            <Printer className="w-5 h-5 text-gray-500" />
-            Imprimir Historial
-          </button>
+          {!isPodologo && (
+            <button 
+              onClick={() => window.print()}
+              className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 font-medium shadow-sm transition-colors whitespace-nowrap"
+            >
+              <Printer className="w-5 h-5 text-gray-500" />
+              Imprimir Historial
+            </button>
+          )}
           
           <button 
             onClick={() => {
@@ -284,22 +298,24 @@ export function HistoriaClinicaPage() {
               {atenciones.length}
             </span>
           </button>
-          <button
-            onClick={() => setActiveTab('compras')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all ${
-              activeTab === 'compras'
-                ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20'
-                : 'text-gray-400 hover:text-[#004975] hover:bg-gray-50 border border-gray-200'
-            }`}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Compras
-            {ventas.length > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'compras' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
-                {ventas.length}
-              </span>
-            )}
-          </button>
+          {!isPodologo && (
+            <button
+              onClick={() => setActiveTab('compras')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all ${
+                activeTab === 'compras'
+                  ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20'
+                  : 'text-gray-400 hover:text-[#004975] hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Compras
+              {ventas.length > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'compras' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+                  {ventas.length}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Print-only title */}

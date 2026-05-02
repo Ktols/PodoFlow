@@ -7,6 +7,7 @@ import { es } from 'date-fns/locale';
 import { CobroDrawer } from './CobroDrawer';
 import { TicketPrint } from './TicketPrint';
 import { ExportModal } from '../../../components/ExportModal';
+import { useAuthStore } from '../../../stores/authStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
 import { useBranchStore } from '../../../stores/branchStore';
 
@@ -57,6 +58,9 @@ export function CobrosPendientesTab() {
   const [exportHasta, setExportHasta] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [exportCobro, setExportCobro] = useState('');
   const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const { perfil } = useAuthStore();
+  const isDueno = perfil?.rol_nombre === 'dueno';
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [fechaDesde, setFechaDesde] = useState(todayStr);
@@ -366,13 +370,15 @@ export function CobrosPendientesTab() {
           )}
         </div>
 
-        <button
-          onClick={() => setIsExportOpen(true)}
-          className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Exportar Cobros
-        </button>
+        {isDueno && (
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar Cobros
+          </button>
+        )}
       </div>
 
       {/* Filtros multiples */}

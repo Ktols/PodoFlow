@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Plus, Edit2, Search, Download } from 'lucide-react';
 import { EspecialistaDrawer } from './components/EspecialistaDrawer';
 import { ExportModal } from '../../components/ExportModal';
+import { useAuthStore } from '../../stores/authStore';
 import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface Especialista {
@@ -27,6 +28,9 @@ export function EspecialistasPage() {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportEstadoFilter, setExportEstadoFilter] = useState('');
   const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const { perfil } = useAuthStore();
+  const isDueno = perfil?.rol_nombre === 'dueno';
 
   const especialistaCsvColumns: CsvColumn<Especialista>[] = [
     { key: 'nombres', header: 'Nombres' },
@@ -78,13 +82,15 @@ export function EspecialistasPage() {
           <p className="text-gray-500 mt-1">Gestión de especialistas y colores de agenda</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsExportOpen(true)}
-            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
+          {isDueno && (
+            <button
+              onClick={() => setIsExportOpen(true)}
+              className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Exportar
+            </button>
+          )}
           <button
             onClick={() => { setEspecialistaToEdit(null); setIsDrawerOpen(true); }}
             className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold shadow-sm"

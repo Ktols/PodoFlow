@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, UserPlus, Building2 } from 'lucide-react';
+import { X, UserPlus, Building2, Stethoscope } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,9 @@ const usuarioSchema = z.object({
   telefono: z.string().optional(),
   role_id: z.string().min(1, 'Seleccione un rol'),
   sucursales_ids: z.array(z.string()).optional(),
+  dni: z.string().optional(),
+  color_etiqueta: z.string().optional(),
+  activo: z.boolean(),
 });
 
 type UsuarioFormValues = z.infer<typeof usuarioSchema>;
@@ -71,6 +74,7 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
         apellidos: usuario.apellidos || '',
         telefono: usuario.telefono || '',
         role_id: usuario.role_id || '',
+        activo: usuario.activo ?? true,
       });
       // Load existing branch assignments
       const fetchAssignments = async () => {
@@ -90,6 +94,7 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
         apellidos: '',
         telefono: '',
         role_id: '',
+        activo: true,
       });
       setSelectedSucursales(new Set());
     }
@@ -134,6 +139,7 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
             email: data.email,
             telefono: data.telefono || null,
             role_id: data.role_id,
+            activo: data.activo,
           })
           .eq('id', usuario.id);
         if (error) throw error;
@@ -162,6 +168,7 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
             email: data.email,
             telefono: data.telefono || null,
             role_id: data.role_id,
+            activo: data.activo,
           }]);
         if (error) throw error;
 
@@ -174,7 +181,27 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
           await supabase.from('usuarios_sucursales').insert(assignments);
         }
 
-        toast.success('Usuario pre-registrado. Cuando inicie sesión con ese email, tendrá acceso automático.');
+        // Si el rol es Podólogo, sincronizar automáticamente creando el registro en el módulo de Personal
+        if (rolSeleccionado?.nombre === 'podologo') {
+          const { error: podologoError } = await supabase.from('podologos').insert([{
+            nombres: `${data.nombres} ${data.apellidos}`,
+            dni: data.dni || 'PENDIENTE',
+            correo: data.email,
+            telefono: data.telefono || null,
+            especialidad: 'Podología',
+            estado: true,
+            color_etiqueta: data.color_etiqueta || '#00C288'
+          }]);
+          
+          if (podologoError) {
+            console.error("Error sincronizando al podólogo con el módulo Personal:", podologoError);
+            toast.error("El usuario se creó, pero falló la sincronización con Personal. Verifica si el DNI o Correo ya existen allí.", { duration: 5000 });
+          } else {
+            toast.success('Usuario y Personal registrado automáticamente. Cuando inicie sesión con ese email, tendrá acceso completo.', { duration: 5000 });
+          }
+        } else {
+          toast.success('Usuario pre-registrado. Cuando inicie sesión con ese email, tendrá acceso automático.');
+        }
       }
 
       onSuccess();
@@ -211,7 +238,7 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
           {!isEditing && (
             <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
               <p className="text-xs font-bold text-blue-700 leading-relaxed">
-                💡 Solo necesitas el <strong>correo electrónico</strong> del empleado. Cuando esa persona inicie sesión con Google o Microsoft usando ese email, el sistema lo reconocerá automáticamente y le dará acceso.
+                💡 Solo necesitas registrar el <strong>correo electrónico</strong> del empleado. Cuando esa persona inicie sesión (vía Google, Microsoft, o mediante un Código enviado a su correo), el sistema lo reconocerá automáticamente.
               </p>
             </div>
           )}
@@ -300,6 +327,43 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
             {errors.role_id && <p className="text-red-500 text-xs mt-1">{errors.role_id.message}</p>}
           </div>
 
+          {/* Dynamic Fields para Podólogos (Personal) */}
+          {rolSeleccionado?.nombre === 'podologo' && (
+            <div className="grid grid-cols-2 gap-4 bg-[#00C288]/5 p-5 rounded-xl border border-[#00C288]/20 animate-in fade-in duration-300">
+              <div className="col-span-2">
+                <p className="text-sm font-bold text-[#004975] mb-2 flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-[#00C288]" /> 
+                  Conexión con Directorio de Personal
+                </p>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Al crear este usuario de acceso, se generará <strong>automáticamente</strong> su perfil en el módulo de <em>Personal</em> para que pueda tener citas asignadas en la agenda. Completa su DNI y su color de distintivo ahora (o modifícalos luego).
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">DNI</label>
+                <input
+                  {...register('dni')}
+                  className="w-full px-4 py-2 border border-[#00C288]/30 rounded-lg focus:ring-2 focus:ring-[#00C288] focus:border-transparent outline-none transition-all bg-white"
+                  placeholder="Ej: 12345678"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Color Agenda</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    {...register('color_etiqueta')}
+                    defaultValue="#00C288"
+                    className="w-9 h-9 rounded cursor-pointer border-0 p-0 bg-transparent"
+                  />
+                  <span className="text-xs text-gray-400 font-medium leading-tight">Color único en <br/> el calendario</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Sucursales assignment — only for non-owners */}
           {watchedRole && !esDueno && (
             <div className="animate-in fade-in duration-200">
@@ -352,6 +416,21 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
               </p>
             </div>
           )}
+
+          {/* Toggle de Estado */}
+          <div className="flex flex-col justify-center bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <label className="block text-sm font-bold text-secondary mb-2">Estado del Acceso</label>
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
+              <div className="relative">
+                <input type="checkbox" className="sr-only peer" {...register('activo')} />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary border border-gray-300 peer-checked:border-primary"></div>
+              </div>
+              <span className="text-sm font-medium text-gray-700">Permitir inicio de sesión (Activo)</span>
+            </label>
+            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+              Al apagar este interruptor, el usuario será bloqueado y perderá el acceso al sistema inmediatamente.
+            </p>
+          </div>
 
           {/* Botones */}
           <div className="flex gap-3 pt-4 border-t border-gray-100">

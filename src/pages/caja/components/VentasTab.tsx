@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { VentaDrawer } from './VentaDrawer';
 import { ExportModal } from '../../../components/ExportModal';
+import { useAuthStore } from '../../../stores/authStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
 
 interface VentaItem {
@@ -43,6 +44,9 @@ export function VentasTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMetodo, setFilterMetodo] = useState('');
   const [isExportOpen, setIsExportOpen] = useState(false);
+
+  const { perfil } = useAuthStore();
+  const isDueno = perfil?.rol_nombre === 'dueno';
 
   const isRangeToday = fechaDesde === todayStr && fechaHasta === todayStr;
 
@@ -120,10 +124,12 @@ export function VentasTab() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsExportOpen(true)}
-              className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors">
-              <Download className="w-4 h-4" /> Exportar
-            </button>
+            {isDueno && (
+              <button onClick={() => setIsExportOpen(true)}
+                className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors">
+                <Download className="w-4 h-4" /> Exportar
+              </button>
+            )}
             <button onClick={() => setIsDrawerOpen(true)}
               className="bg-[#00C288] hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5">
               <Plus className="w-5 h-5" /> NUEVA VENTA

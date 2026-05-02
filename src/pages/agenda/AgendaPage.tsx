@@ -9,6 +9,7 @@ import { CitaDrawer } from './components/CitaDrawer';
 import { CitasListPanel, formatearHora } from './components/CitasListPanel';
 import { ExportModal } from '../../components/ExportModal';
 import { useBranchStore } from '../../stores/branchStore';
+import { useAuthStore } from '../../stores/authStore';
 import type { CsvColumn } from '../../lib/exportCsv';
 
 export interface CitaList {
@@ -60,6 +61,21 @@ export function AgendaPage() {
   const [exportEspecialista, setExportEspecialista] = useState('');
   const [exportEstado, setExportEstado] = useState('');
   const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
+
+  const { perfil } = useAuthStore();
+  const isPodologo = perfil?.rol_nombre === 'podologo';
+  const isDueno = perfil?.rol_nombre === 'dueno';
+  const [miPodoId, setMiPodoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isPodologo && perfil?.email) {
+      supabase.from('podologos').select('id').eq('correo', perfil.email).single()
+        .then(({ data }) => {
+          if (data) setMiPodoId(data.id);
+          else setMiPodoId('00000000-0000-0000-0000-000000000000');
+        });
+    }
+  }, [isPodologo, perfil?.email]);
 
   const citaCsvColumns: CsvColumn<CitaList>[] = [
     { key: 'fecha_cita', header: 'Fecha' },
@@ -126,6 +142,11 @@ export function AgendaPage() {
       query = query.eq('sucursal_id', sucursalActiva.id);
     }
 
+    if (isPodologo) {
+      if (!miPodoId) return; // Wait until we have the ID
+      query = query.eq('podologo_id', miPodoId);
+    }
+
     const { data, error } = await query
       .order('fecha_cita', { ascending: !isGlobalSearch })
       .order('hora_cita', { ascending: true });
@@ -141,8 +162,9 @@ export function AgendaPage() {
   };
 
   useEffect(() => {
+    if (isPodologo && !miPodoId) return; // Esperar a tener el ID
     fetchCitas();
-  }, [selectedDate, isGlobalSearch, sucursalActiva?.id]);
+  }, [selectedDate, isGlobalSearch, sucursalActiva?.id, isPodologo, miPodoId]);
 
   const updateEstadoCita = async (id: string, nuevoEstado: string, skipConfirm = false) => {
     if ((nuevoEstado === 'Cancelada' || nuevoEstado === 'No Asistió') && !skipConfirm) {
@@ -263,23 +285,27 @@ export function AgendaPage() {
 
         {/* Global Actions */}
         <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={() => setIsExportOpen(true)}
-            className="p-3.5 bg-white hover:bg-gray-50 text-[#004975] rounded-xl border border-gray-200 shadow-sm transition-colors"
-            title="Exportar Agenda"
-          >
-            <Download className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => {
-              setCitaEnEdicion(null);
-              setIsDrawerOpen(true);
-            }}
-            className="w-full lg:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
-          >
-            <Plus className="w-5 h-5" />
-            NUEVO TURNO
-          </button>
+          {isDueno && (
+            <button
+              onClick={() => setIsExportOpen(true)}
+              className="p-3.5 bg-white hover:bg-gray-50 text-[#004975] rounded-xl border border-gray-200 shadow-sm transition-colors"
+              title="Exportar Agenda"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+          )}
+          {!isPodologo && (
+            <button
+              onClick={() => {
+                setCitaEnEdicion(null);
+                setIsDrawerOpen(true);
+              }}
+              className="w-full lg:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
+            >
+              <Plus className="w-5 h-5" />
+              NUEVO TURNO
+            </button>
+          )}
         </div>
       </div>
 
@@ -295,16 +321,18 @@ export function AgendaPage() {
           />
           <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
         </div>
-        <select 
-          className="w-full md:w-64 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#00C288] transition-colors font-medium text-gray-700"
-          value={selectedEspecialista}
-          onChange={(e) => setSelectedEspecialista(e.target.value)}
-        >
-          <option value="">Todos los especialistas</option>
-          {podologos.map(p => (
-            <option key={p.id} value={p.id}>{p.nombres}</option>
-          ))}
-        </select>
+        {!isPodologo && (
+          <select 
+            className="w-full md:w-64 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#00C288] transition-colors font-medium text-gray-700"
+            value={selectedEspecialista}
+            onChange={(e) => setSelectedEspecialista(e.target.value)}
+          >
+            <option value="">Todos los especialistas</option>
+            {podologos.map(p => (
+              <option key={p.id} value={p.id}>{p.nombres}</option>
+            ))}
+          </select>
+        )}
         <select 
           className="w-full md:w-64 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#00C288] transition-colors font-medium text-gray-700"
           value={selectedEstado}
