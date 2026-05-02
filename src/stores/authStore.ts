@@ -1,16 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-
-interface Perfil {
-  id: string;
-  nombres: string;
-  apellidos: string;
-  email: string;
-  telefono: string | null;
-  activo: boolean;
-  role_id: string | null;
-  rol_nombre: string | null;
-}
+import type { Perfil } from '../types/entities';
 
 interface AuthState {
   perfil: Perfil | null;

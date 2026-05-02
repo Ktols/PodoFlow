@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { X, Package, Hash, Boxes } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import type { Producto } from './ProductosTab';
-import { CATEGORIAS_PRODUCTO } from '../constants';
+import type { Producto } from '../../../types/entities';
+import { CATEGORIAS_PRODUCTO } from '../../../constants';
 
 interface ProductoDrawerProps {
   isOpen: boolean;

@@ -1,17 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import type { Sucursal } from '../types/entities';
 import type { UsuarioSucursalRow } from '../types/agenda';
-
-interface Sucursal {
-  id: string;
-  nombre_comercial: string;
-  razon_social: string | null;
-  ruc: string | null;
-  direccion: string | null;
-  telefono: string | null;
-  whatsapp: string | null;
-  activa: boolean;
-}
 
 interface BranchState {
   sucursales: Sucursal[];

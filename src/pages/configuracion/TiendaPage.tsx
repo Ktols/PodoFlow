@@ -1,21 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
 import { Plus, Edit2, Building2, MapPin, Phone, FileText, Power } from 'lucide-react';
 import { SucursalDrawer } from './components/SucursalDrawer';
 import { useBranchStore } from '../../stores/branchStore';
 import { useAuthStore } from '../../stores/authStore';
-
-interface Sucursal {
-  id: string;
-  nombre_comercial: string;
-  razon_social: string | null;
-  ruc: string | null;
-  direccion: string | null;
-  telefono: string | null;
-  whatsapp: string | null;
-  activa: boolean;
-  created_at: string;
-}
+import type { Sucursal } from '../../types/entities';
 
 export function TiendaPage() {
   const [sucursalesList, setSucursalesList] = useState<Sucursal[]>([]);
@@ -38,6 +28,7 @@ export function TiendaPage() {
       setSucursalesList(data || []);
     } catch (err) {
       console.error('Error fetching sucursales:', err);
+      toast.error('Error al cargar las sucursales');
     } finally {
       setLoading(false);
     }
