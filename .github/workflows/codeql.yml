@@ -13,9 +13,9 @@ name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "QA" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "QA" ]
   schedule:
     - cron: '28 22 * * 1'
 
@@ -38,6 +38,9 @@ jobs:
       # only required for workflows in private repositories
       actions: read
       contents: read
+      
+      # required to post comments on PRs
+      pull-requests: write
 
     strategy:
       fail-fast: false
@@ -99,3 +102,41 @@ jobs:
       uses: github/codeql-action/analyze@v4
       with:
         category: "/language:${{matrix.language}}"
+        output: sarif-results
+
+    - name: Generar Resumen de Seguridad en PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          const sarifPath = path.join(process.env.GITHUB_WORKSPACE, 'sarif-results', '${{ matrix.language }}.sarif');
+          
+          let alertCount = 0;
+          try {
+            if (fs.existsSync(sarifPath)) {
+              const sarif = JSON.parse(fs.readFileSync(sarifPath, 'utf8'));
+              sarif.runs.forEach(run => {
+                if (run.results) {
+                  alertCount += run.results.length;
+                }
+              });
+              
+              const emoji = alertCount === 0 ? '✅' : '⚠️';
+              const body = `🛡️ **Reporte de CodeQL (Seguridad)**\n\n${emoji} Se han escaneado los cambios en la rama y se encontraron **${alertCount}** alertas de seguridad/calidad para el lenguaje \`${{ matrix.language }}\`.\n\n_Revisa la pestaña "Files changed" o los "Checks" del PR para ver las líneas de código exactas afectadas._`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            } else {
+              console.log("No se encontro el archivo SARIF para extraer el resumen.");
+            }
+          } catch (e) {
+            console.log("Error parseando resultados de CodeQL:", e);
+          }
