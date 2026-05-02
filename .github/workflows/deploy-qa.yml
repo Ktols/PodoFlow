@@ -33,14 +33,19 @@ jobs:
         id: vercel_action
         run: |
           DEPLOY_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "url<<$EOF" >> $GITHUB_OUTPUT
+          echo "$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
 
       - name: Dejar comentario en el PR
         uses: actions/github-script@v7
+        env:
+          VERCEL_URL: ${{ steps.vercel_action.outputs.url }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const url = '${{ steps.vercel_action.outputs.url }}';
+            const url = process.env.VERCEL_URL;
             
             // Buscar si este commit provino de un Pull Request
             const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
