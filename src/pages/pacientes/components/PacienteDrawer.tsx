@@ -4,7 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { pacienteSchema, type PacienteFormValues } from '../schemas/pacienteSchema';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { type Paciente } from '../PacientesPage';
+import type { Paciente } from '../../../types/entities';
+import { DatePicker } from '../../../components/DatePicker';
 import { useEffect } from 'react';
 
 interface PacienteDrawerProps {
@@ -17,7 +18,7 @@ interface PacienteDrawerProps {
 }
 
 export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, patient, defaultDocumento }: PacienteDrawerProps) {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<PacienteFormValues>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<PacienteFormValues>({
     resolver: zodResolver(pacienteSchema),
     defaultValues: {
       tipo_documento: 'DNI',
@@ -183,10 +184,9 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
 
               <div>
                 <label className="block text-sm font-medium text-secondary mb-1">F. Nacimiento</label>
-                <input 
-                  type="date"
-                  className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary text-gray-700 transition-colors"
-                  {...register('fecha_nacimiento')}
+                <DatePicker
+                  value={watch('fecha_nacimiento') || ''}
+                  onChange={(v) => setValue('fecha_nacimiento', v)}
                 />
               </div>
             </div>

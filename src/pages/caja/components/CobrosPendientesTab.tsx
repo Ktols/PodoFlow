@@ -10,39 +10,8 @@ import { ExportModal } from '../../../components/ExportModal';
 import { useAuthStore } from '../../../stores/authStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
 import { useBranchStore } from '../../../stores/branchStore';
-
-interface CitaCaja {
-  id: string;
-  paciente_id: string;
-  podologo_id: string;
-  fecha_cita: string;
-  hora_cita: string;
-  motivo: string;
-  estado: string;
-  adelanto?: number;
-  adelanto_metodo_pago?: string | null;
-  pacientes: {
-    nombres: string;
-    apellidos: string;
-    numero_documento: string | null;
-    telefono?: string | null;
-  };
-  podologos: {
-    nombres: string;
-    color_etiqueta: string;
-  };
-}
-
-interface PagoRegistrado {
-  id: string;
-  cita_id: string;
-  monto_total: number;
-  metodo_pago: string;
-  estado: string;
-  codigo_referencia?: string;
-  fecha_pago?: string;
-  numero_ticket?: number;
-}
+import type { CitaCaja, PagoRegistrado } from '../../../types/entities';
+import { DatePicker } from '../../../components/DatePicker';
 
 export function CobrosPendientesTab() {
   const { sucursalActiva } = useBranchStore();
@@ -344,21 +313,16 @@ export function CobrosPendientesTab() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 shadow-sm p-1.5">
-            <Calendar className="w-4 h-4 text-[#00C288] ml-2" />
             <div className="flex items-center gap-1.5">
-              <input type="date" value={fechaDesde}
-                onChange={(e) => {
-                  setFechaDesde(e.target.value);
-                  if (e.target.value > fechaHasta) setFechaHasta(e.target.value);
-                }}
-                className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-bold text-[#004975] bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none w-[140px]" />
+              <DatePicker value={fechaDesde} onChange={(v) => {
+                setFechaDesde(v);
+                if (v > fechaHasta) setFechaHasta(v);
+              }} />
               <span className="text-xs font-bold text-gray-400">a</span>
-              <input type="date" value={fechaHasta}
-                onChange={(e) => {
-                  setFechaHasta(e.target.value);
-                  if (e.target.value < fechaDesde) setFechaDesde(e.target.value);
-                }}
-                className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-bold text-[#004975] bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none w-[140px]" />
+              <DatePicker value={fechaHasta} onChange={(v) => {
+                setFechaHasta(v);
+                if (v < fechaDesde) setFechaDesde(v);
+              }} />
             </div>
           </div>
           {!isRangeToday && (
@@ -725,13 +689,11 @@ export function CobrosPendientesTab() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-[#004975] mb-1.5">Desde</label>
-            <input type="date" value={exportDesde} onChange={(e) => { setExportDesde(e.target.value); setExportFilterTrigger(n => n + 1); }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+            <DatePicker value={exportDesde} onChange={(v) => { setExportDesde(v); setExportFilterTrigger(n => n + 1); }} />
           </div>
           <div>
             <label className="block text-xs font-bold text-[#004975] mb-1.5">Hasta</label>
-            <input type="date" value={exportHasta} onChange={(e) => { setExportHasta(e.target.value); setExportFilterTrigger(n => n + 1); }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+            <DatePicker value={exportHasta} onChange={(v) => { setExportHasta(v); setExportFilterTrigger(n => n + 1); }} />
           </div>
         </div>
         <div>

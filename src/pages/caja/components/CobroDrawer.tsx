@@ -5,29 +5,13 @@ import { toast } from 'react-hot-toast';
 import { StampCard } from '../../../components/StampCard';
 import { SELLOS_PARA_GRATIS } from '../../../config/clinicData';
 import { useBranchStore } from '../../../stores/branchStore';
+import type { CitaParaCobro } from '../../../types/entities';
+import { METODOS_PAGO } from '../../../constants';
 
 interface ServicioActivo {
   id: string;
   nombre: string;
   precio_base: number;
-}
-
-interface CitaParaCobro {
-  id: string;
-  paciente_id: string;
-  hora_cita: string;
-  motivo: string;
-  adelanto?: number;
-  adelanto_metodo_pago?: string | null;
-  pacientes: {
-    nombres: string;
-    apellidos: string;
-    numero_documento: string | null;
-  };
-  podologos: {
-    nombres: string;
-    color_etiqueta: string;
-  };
 }
 
 interface CobroDrawerProps {
@@ -36,14 +20,6 @@ interface CobroDrawerProps {
   onSuccess?: () => void;
   cita: CitaParaCobro | null;
 }
-
-const METODOS_PAGO = [
-  { value: 'Efectivo', label: '💵 Efectivo' },
-  { value: 'Tarjeta', label: '💳 Tarjeta' },
-  { value: 'Yape', label: '📱 Yape' },
-  { value: 'Plin', label: '📱 Plin' },
-  { value: 'Transferencia', label: '🏦 Transferencia' },
-];
 
 export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerProps) {
   const { sucursalActiva } = useBranchStore();

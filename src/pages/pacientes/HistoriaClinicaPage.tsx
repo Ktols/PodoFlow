@@ -3,35 +3,11 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer, ShoppingCart, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import { type Paciente } from './PacientesPage';
+import type { Paciente, Atencion } from '../../types/entities';
 import { AtencionDrawer } from './components/AtencionDrawer';
 import { StampCard } from '../../components/StampCard';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-export interface Atencion {
-  id: string;
-  paciente_id: string;
-  motivo_consulta: string;
-  diagnostico?: string | null;
-  tratamiento: string | null;
-  recomendaciones?: string | null;
-  indicaciones: string | null;
-  fotos: string[] | null;
-  created_at: string;
-  evaluacion_piel?: string[];
-  evaluacion_unas?: string[];
-  tratamientos_realizados?: string[];
-  productos_usados?: string[];
-  medicamentos_recetados?: string[];
-  proxima_cita?: string | null;
-  podologo_id?: string;
-  podologos?: {
-    id: string;
-    nombres: string;
-    color_etiqueta: string;
-  };
-}
 
 export function HistoriaClinicaPage() {
   const { id } = useParams<{ id: string }>();

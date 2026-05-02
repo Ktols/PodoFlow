@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Search, Download, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay } from 'date-fns';
+import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
@@ -11,31 +11,11 @@ import { ExportModal } from '../../components/ExportModal';
 import { useBranchStore } from '../../stores/branchStore';
 import { useAuthStore } from '../../stores/authStore';
 import type { CsvColumn } from '../../lib/exportCsv';
+import type { CitaList } from '../../types/entities';
+import { DatePicker } from '../../components/DatePicker';
 
-export interface CitaList {
-  id: string;
-  paciente_id: string;
-  podologo_id: string;
-  fecha_cita: string;
-  hora_cita: string;
-  motivo: string;
-  estado: string;
-  pacientes: {
-    nombres: string;
-    apellidos: string;
-    telefono: string | null;
-    numero_documento: string | null;
-    sellos?: number;
-  };
-  podologos: {
-    nombres: string;
-    color_etiqueta: string;
-  };
-  adelanto?: number;
-  adelanto_metodo_pago?: string | null;
-}
-
-
+// Re-export for CitasListPanel
+export type { CitaList } from '../../types/entities';
 
 export function AgendaPage() {
   const navigate = useNavigate();
@@ -53,6 +33,8 @@ export function AgendaPage() {
   const [selectedEspecialista, setSelectedEspecialista] = useState('');
   const [selectedEstado, setSelectedEstado] = useState('');
   const [isGlobalSearch, setIsGlobalSearch] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarViewDate, setCalendarViewDate] = useState<Date>(new Date());
 
   // Export state
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -199,38 +181,150 @@ export function AgendaPage() {
       <div className="bg-white rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-4 lg:p-6 flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-6">
         
         {/* Date Navigator */}
-        <div className="flex flex-col w-full lg:w-auto lg:min-w-0 lg:flex-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 overflow-hidden gap-2">
-          {/* Month selector */}
+        <div className="flex flex-col w-full lg:w-auto lg:min-w-0 lg:flex-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 gap-2">
+          {/* Month selector + date picker */}
           <div className="flex items-center justify-between px-1">
-            <button
-              onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
-              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
-              title="Mes Anterior"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-sm font-black text-[#004975] capitalize tracking-wide">
-              {format(selectedDate, "MMMM yyyy", { locale: es })}
-            </span>
-            <button
-              onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
-              title="Mes Siguiente"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+            <div className="relative flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setCalendarViewDate(selectedDate);
+                  setIsCalendarOpen(!isCalendarOpen);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-xl transition-colors group"
+              >
+                <CalendarIcon className="w-4 h-4 text-[#00C288]" />
+                <span className="text-sm font-black text-[#004975] capitalize tracking-wide">
+                  {format(selectedDate, "MMMM yyyy", { locale: es })}
+                </span>
+                <ChevronLeft className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isCalendarOpen ? 'rotate-90' : '-rotate-90'}`} />
+              </button>
 
-          {/* Hoy shortcut */}
-          {!isSameDay(selectedDate, new Date()) && (
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="self-center text-[11px] font-black text-[#00C288] uppercase tracking-wider bg-[#00C288]/10 hover:bg-[#00C288]/20 px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <CalendarIcon className="w-3.5 h-3.5" />
-              Ir a hoy
-            </button>
-          )}
+              {/* Mini Calendar Dropdown */}
+              {isCalendarOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsCalendarOpen(false)} />
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-[300px] animate-in zoom-in-95 fade-in duration-150">
+                    {/* Calendar header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <button
+                        onClick={() => setCalendarViewDate(subMonths(calendarViewDate, 1))}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <span className="text-sm font-black text-[#004975] capitalize">
+                        {format(calendarViewDate, "MMMM yyyy", { locale: es })}
+                      </span>
+                      <button
+                        onClick={() => setCalendarViewDate(addMonths(calendarViewDate, 1))}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Day names */}
+                    <div className="grid grid-cols-7 mb-1">
+                      {['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map(d => (
+                        <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">{d}</div>
+                      ))}
+                    </div>
+
+                    {/* Calendar grid */}
+                    <div className="grid grid-cols-7">
+                      {(() => {
+                        const monthStart = startOfMonth(calendarViewDate);
+                        const monthEnd = endOfMonth(calendarViewDate);
+                        const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+                        const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+                        const days = eachDayOfInterval({ start: calStart, end: calEnd });
+
+                        return days.map(day => {
+                          const isCurrentMonth = isSameMonth(day, calendarViewDate);
+                          const isSelected = isSameDay(day, selectedDate);
+                          const isTodayDay = isSameDay(day, new Date());
+
+                          return (
+                            <button
+                              key={day.toISOString()}
+                              onClick={() => {
+                                setSelectedDate(day);
+                                setIsCalendarOpen(false);
+                              }}
+                              className={`h-9 w-full rounded-lg text-sm font-bold transition-all ${
+                                isSelected
+                                  ? 'bg-[#00C288] text-white shadow-sm'
+                                  : isTodayDay
+                                    ? 'bg-[#00C288]/10 text-[#00C288] hover:bg-[#00C288]/20'
+                                    : isCurrentMonth
+                                      ? 'text-[#004975] hover:bg-gray-100'
+                                      : 'text-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {format(day, 'd')}
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
+
+                    {/* Quick actions */}
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                      <button
+                        onClick={() => {
+                          setSelectedDate(new Date());
+                          setIsCalendarOpen(false);
+                        }}
+                        className="flex-1 text-xs font-black text-[#00C288] bg-[#00C288]/10 hover:bg-[#00C288]/20 px-3 py-2 rounded-lg transition-colors"
+                      >
+                        Hoy
+                      </button>
+                      <select
+                        value={calendarViewDate.getMonth()}
+                        onChange={(e) => {
+                          const newDate = new Date(calendarViewDate);
+                          newDate.setMonth(Number(e.target.value));
+                          setCalendarViewDate(newDate);
+                        }}
+                        className="flex-1 text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-[#00C288] capitalize"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {format(new Date(2024, i, 1), 'MMMM', { locale: es })}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={calendarViewDate.getFullYear()}
+                        onChange={(e) => {
+                          const newDate = new Date(calendarViewDate);
+                          newDate.setFullYear(Number(e.target.value));
+                          setCalendarViewDate(newDate);
+                        }}
+                        className="w-20 text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-[#00C288]"
+                      >
+                        {Array.from({ length: 11 }, (_, i) => {
+                          const year = new Date().getFullYear() - 5 + i;
+                          return <option key={year} value={year}>{year}</option>;
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Hoy shortcut (visible when not today) */}
+            {!isSameDay(selectedDate, new Date()) && (
+              <button
+                onClick={() => setSelectedDate(new Date())}
+                className="text-[11px] font-black text-[#00C288] uppercase tracking-wider bg-[#00C288]/10 hover:bg-[#00C288]/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                Hoy
+              </button>
+            )}
+          </div>
 
           {/* Week day strip */}
           <div className="flex items-center gap-2">
@@ -391,7 +485,6 @@ export function AgendaPage() {
       )}
 
 
-
       <CitaDrawer 
         isOpen={isDrawerOpen} 
         onClose={() => setIsDrawerOpen(false)} 
@@ -454,13 +547,11 @@ export function AgendaPage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-[#004975] mb-1.5">Desde</label>
-            <input type="date" value={exportDesde} onChange={(e) => { setExportDesde(e.target.value); setExportFilterTrigger(n => n + 1); }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+            <DatePicker value={exportDesde} onChange={(v) => { setExportDesde(v); setExportFilterTrigger(n => n + 1); }} />
           </div>
           <div>
             <label className="block text-xs font-bold text-[#004975] mb-1.5">Hasta</label>
-            <input type="date" value={exportHasta} onChange={(e) => { setExportHasta(e.target.value); setExportFilterTrigger(n => n + 1); }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-[#00C288] outline-none" />
+            <DatePicker value={exportHasta} onChange={(v) => { setExportHasta(v); setExportFilterTrigger(n => n + 1); }} />
           </div>
         </div>
         <div>

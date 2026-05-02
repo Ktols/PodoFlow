@@ -1,22 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
 import { Plus, Edit2, Search, Download } from 'lucide-react';
 import { EspecialistaDrawer } from './components/EspecialistaDrawer';
 import { ExportModal } from '../../components/ExportModal';
 import { useAuthStore } from '../../stores/authStore';
 import type { CsvColumn } from '../../lib/exportCsv';
-
-export interface Especialista {
-  id: string;
-  dni: string;
-  nombres: string;
-  especialidad: string;
-  telefono: string;
-  correo: string;
-  color_etiqueta: string;
-  estado: boolean;
-  created_at: string;
-}
+import type { Especialista } from '../../types/entities';
 
 export function EspecialistasPage() {
   const [especialistas, setEspecialistas] = useState<Especialista[]>([]);
@@ -64,6 +54,7 @@ export function EspecialistasPage() {
       setEspecialistas(data || []);
     } catch (err) {
       console.error('Error fetching especialistas:', err);
+      toast.error('Error al cargar los especialistas');
     } finally {
       setLoading(false);
     }

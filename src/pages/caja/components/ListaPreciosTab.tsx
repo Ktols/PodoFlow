@@ -3,14 +3,7 @@ import { Plus, Pencil, Package, Search } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ServicioDrawer } from './ServicioDrawer';
-
-export interface Servicio {
-  id: string;
-  nombre: string;
-  precio_base: number;
-  estado: boolean;
-  created_at?: string;
-}
+import type { Servicio } from '../../../types/entities';
 
 export function ListaPreciosTab() {
   const [servicios, setServicios] = useState<Servicio[]>([]);
