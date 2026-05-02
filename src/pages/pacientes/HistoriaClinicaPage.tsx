@@ -323,7 +323,7 @@ export function HistoriaClinicaPage() {
                 <div className="absolute w-4 h-4 bg-[#00C288] rounded-full -left-[9px] top-1 border-4 border-background ring-1 ring-gray-200 shadow-sm print:hidden" />
                 
                 {/* Timeline Card */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all print:shadow-none print:p-4 print:border-gray-300 print:break-inside-avoid">
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all print:shadow-none print:p-0 print:border-none print:bg-transparent">
                   <div className="flex justify-between items-start mb-5 pb-3 border-b border-gray-50 print:border-gray-200">
                     <div className="flex flex-wrap items-center gap-2 text-sm text-[#004975] font-bold">
                       <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0 print:text-gray-500" />
@@ -364,20 +364,20 @@ export function HistoriaClinicaPage() {
                   </div>
                   
                   <div className="space-y-5">
-                    <div>
+                    <div className="print:break-inside-avoid">
                       <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1.5">Motivo de Consulta</h4>
                       <p className="text-secondary font-semibold text-lg">{atencion.motivo_consulta}</p>
                     </div>
 
                     {atencion.diagnostico && (
-                      <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100/50">
+                      <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100/50 print:break-inside-avoid">
                         <h4 className="text-xs font-bold text-blue-800 tracking-wider uppercase mb-1">Diagnóstico</h4>
                         <p className="text-blue-900 text-sm whitespace-pre-wrap">{atencion.diagnostico}</p>
                       </div>
                     )}
 
                     {(atencion.evaluacion_piel?.length || atencion.evaluacion_unas?.length) ? (
-                      <div>
+                      <div className="print:break-inside-avoid">
                         <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Evaluación Física</h4>
                         <div className="flex flex-wrap gap-2">
                           {atencion.evaluacion_piel?.map(item => (
@@ -390,7 +390,7 @@ export function HistoriaClinicaPage() {
                       </div>
                     ) : null}
                     
-                    <div>
+                    <div className="print:break-inside-avoid">
                       <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Tratamientos Aplicados</h4>
                       {atencion.tratamientos_realizados && atencion.tratamientos_realizados.length > 0 ? (
                         <div className="flex flex-wrap gap-2 mb-3">
@@ -411,7 +411,7 @@ export function HistoriaClinicaPage() {
                     </div>
 
                     {atencion.productos_usados && atencion.productos_usados.length > 0 && (
-                      <div>
+                      <div className="print:break-inside-avoid">
                         <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Productos Utilizados</h4>
                         <div className="flex flex-wrap gap-2">
                           {atencion.productos_usados.map(item => (
@@ -424,7 +424,7 @@ export function HistoriaClinicaPage() {
                     )}
 
                     {atencion.medicamentos_recetados && atencion.medicamentos_recetados.length > 0 && (
-                      <div>
+                      <div className="print:break-inside-avoid">
                         <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Medicamentos Recetados</h4>
                         <div className="flex flex-wrap gap-2">
                           {atencion.medicamentos_recetados.map(item => (
@@ -437,21 +437,21 @@ export function HistoriaClinicaPage() {
                     )}
 
                     {atencion.recomendaciones && (
-                      <div className="bg-green-50/50 rounded-lg p-3 border border-green-100/50">
+                      <div className="bg-green-50/50 rounded-lg p-3 border border-green-100/50 print:break-inside-avoid">
                         <h4 className="text-xs font-bold text-green-800 tracking-wider uppercase mb-1">Recomendaciones</h4>
                         <p className="text-green-900 text-sm whitespace-pre-wrap">{atencion.recomendaciones}</p>
                       </div>
                     )}
 
                     {atencion.indicaciones && (
-                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 print:color-adjust-exact">
+                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 print:color-adjust-exact print:break-inside-avoid">
                         <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5">Indicaciones al Paciente</h4>
                         <p className="text-yellow-900 text-sm whitespace-pre-wrap">{atencion.indicaciones}</p>
                       </div>
                     )}
 
                     {atencion.proxima_cita && (
-                      <div className="flex items-center gap-2 bg-[#00C288]/5 rounded-lg p-3 border border-[#00C288]/20">
+                      <div className="flex items-center gap-2 bg-[#00C288]/5 rounded-lg p-3 border border-[#00C288]/20 print:break-inside-avoid">
                         <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0" />
                         <div>
                           <span className="text-[10px] font-black text-[#00C288] uppercase tracking-wider">Próxima cita sugerida</span>
@@ -463,7 +463,7 @@ export function HistoriaClinicaPage() {
                     )}
                     
                     {atencion.fotos && atencion.fotos.length > 0 && (
-                      <div className="mt-4 print:mt-3">
+                      <div className="mt-4 print:mt-3 print:break-inside-avoid">
                         <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Imágenes Clínicas</h4>
                         <div className="flex flex-wrap gap-3">
                           {atencion.fotos.map((foto, idx) => (
