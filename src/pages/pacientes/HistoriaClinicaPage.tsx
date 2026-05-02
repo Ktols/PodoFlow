@@ -28,6 +28,13 @@ export function HistoriaClinicaPage() {
   const [activeTab, setActiveTab] = useState<'historial' | 'compras'>('historial');
   const [ventas, setVentas] = useState<any[]>([]);
   const [ventasLoading, setVentasLoading] = useState(false);
+  const [printAtencionId, setPrintAtencionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintAtencionId(null);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -171,7 +178,10 @@ export function HistoriaClinicaPage() {
         <div className="flex w-full md:w-auto flex-col md:flex-row gap-3 mt-2 md:mt-0 print:hidden">
           {!isPodologo && (
             <button 
-              onClick={() => window.print()}
+              onClick={() => {
+                setPrintAtencionId(null);
+                setTimeout(() => window.print(), 100);
+              }}
               className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 font-medium shadow-sm transition-colors whitespace-nowrap"
             >
               <Printer className="w-5 h-5 text-gray-500" />
@@ -198,7 +208,7 @@ export function HistoriaClinicaPage() {
       </div>
 
       {/* Panel de Perfil Clínico / Antecedentes */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 print:shadow-none print:border-gray-300 print:break-inside-avoid print:p-4">
+      <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 print:shadow-none ${printAtencionId ? 'print:hidden' : 'print:border-gray-300 print:break-inside-avoid print:p-4'}`}>
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
           <Activity className="w-4 h-4" />
           Antecedentes y Alertas Médicas
@@ -297,7 +307,7 @@ export function HistoriaClinicaPage() {
         {/* Print-only title */}
         <h2 className="hidden print:flex text-xl font-bold text-secondary mb-6 items-center gap-2">
           <Clock className="w-5 h-5 text-gray-400" />
-          Historial de Evolución
+          {printAtencionId ? 'Detalle de Atención' : 'Historial de Evolución'}
         </h2>
 
         {activeTab === 'historial' && atenciones.length === 0 ? (
@@ -308,7 +318,7 @@ export function HistoriaClinicaPage() {
         ) : activeTab === 'historial' ? (
           <div className="relative border-l-2 border-gray-100 ml-3 md:ml-4 space-y-8 print:border-l-0 print:ml-0 print:space-y-4">
             {atenciones.map((atencion) => (
-              <div key={atencion.id} className="relative pl-6 md:pl-8 group print:pl-0">
+              <div key={atencion.id} className={`relative pl-6 md:pl-8 group print:pl-0 ${printAtencionId && printAtencionId !== atencion.id ? 'print:hidden' : ''}`}>
                 {/* Visual Node */}
                 <div className="absolute w-4 h-4 bg-[#00C288] rounded-full -left-[9px] top-1 border-4 border-background ring-1 ring-gray-200 shadow-sm print:hidden" />
                 
@@ -329,16 +339,28 @@ export function HistoriaClinicaPage() {
                       )}
                     </div>
                     
-                    <button 
-                      onClick={() => {
-                        setSelectedAtencion(atencion);
-                        setIsDrawerOpen(true);
-                      }}
-                      className="text-gray-400 hover:text-[#00C288] transition-colors flex items-center gap-1 text-sm font-medium opacity-0 group-hover:opacity-100 focus:opacity-100 print:hidden"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Editar
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setPrintAtencionId(atencion.id);
+                          setTimeout(() => window.print(), 100);
+                        }}
+                        className="text-gray-400 hover:text-[#004975] transition-colors flex items-center gap-1 text-sm font-medium opacity-0 group-hover:opacity-100 focus:opacity-100 print:hidden"
+                      >
+                        <Printer className="w-4 h-4" />
+                        Imprimir
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedAtencion(atencion);
+                          setIsDrawerOpen(true);
+                        }}
+                        className="text-gray-400 hover:text-[#00C288] transition-colors flex items-center gap-1 text-sm font-medium opacity-0 group-hover:opacity-100 focus:opacity-100 print:hidden"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        Editar
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="space-y-5">
