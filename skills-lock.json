@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "skills": {
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "bffe3d08cfe92ebad63699f74ce29e35c19850ebfbf474c1463183cfe34d6a09"
+    },
+    "clerk": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "272e4f3c4fcac175ea7f46740f0ad1bf56167110d1bcecde5b33ecb129871d37"
+    },
+    "clerk-backend-api": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "1b8f6b94395bd00123ae80abd52c617e95585f600c1fdc84dd6813a0ce799cc8"
+    },
+    "clerk-custom-ui": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "5f73332b05fd88c5f9b3c56dd92370a12a850059fba34ec0605e4506afaddc96"
+    },
+    "clerk-orgs": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "90ba77cb7983c132ae329d8b33bfefb38b67ed78de0fb14a657015d523930d17"
+    },
+    "clerk-react-patterns": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "456206a8bb6f71bb66225fd41844eb9c7f2ee00d58e2d4f39505dea40a8df4a4"
+    },
+    "clerk-setup": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "13ea4e20447ff8e72d8d43d87c043e2c7430379cb73fb4dbd488401b85d8c2a3"
+    },
+    "clerk-testing": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "889a8f63d333dbb09b81608d1dc240f1e32b12dd8e8a8f1e3e72323c69b41f60"
+    },
+    "clerk-webhooks": {
+      "source": "clerk/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "c766d7b021907e6b8f1e567b30d5a5d70fc313626ab0ce7a9c10fc31bf71aae7"
+    },
+    "composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "c124390cc3441844903ada94cb5820b23d922f2d0ad34e01e029e410197c8a32"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "82fb11a63fb1e35ee2469516ed02d54695f783115b1540c0e783197af4240a3a"
+    },
+    "nodejs-backend-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "autoskills-registry",
+      "computedHash": "710a5e6f83c46e8f6c43356df55c143a7375c4414559a581654ce51709138c55"
+    },
+    "nodejs-best-practices": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "9dbca8bf122ad4b6d8b6686e05e4e434e00ae1dfa5fa412566ae7ee88780a18f"
+    },
+    "react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "502eb06700e2c3cb1bd7f710860528f72281320bd5171a2087b05a090b573dc1"
+    },
+    "react-hook-form": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "5cac0a77035b36714c95df1f0ccc9955713fbfc87734f189a16f5aac903eccda"
+    },
+    "seo": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "c184da724d1c61ad077f27418ea8e7e88fd54bcdf98165e18be7e4681cbd5e20"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "4c09c107aa64d7722369c3856ba8743ea11e7450e4f1227cb72a0d375d1e4fd5"
+    },
+    "tailwind-css-patterns": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "autoskills-registry",
+      "computedHash": "8fd534b64b3f305ade80c207e2f9ba4338d5e409e355af9f724c36764b6709c1"
+    },
+    "typescript-advanced-types": {
+      "source": "wshobson/agents",
+      "sourceType": "autoskills-registry",
+      "computedHash": "5ca0e177c6aaaba1889255691224daafdb7d71f317cc70bede1590d3907ded42"
+    },
+    "vite": {
+      "source": "antfu/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "e0b52fe3ffea533e1e543ac8a8a20fccca3beed9f8bdc31a0934fe9f554439e8"
+    },
+    "zod": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "aa8a97195b07763d37494b511f48be90979fd6826c031956c831cfc58f6a24b8"
+    }
+  }
+}

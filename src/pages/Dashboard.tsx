@@ -24,6 +24,7 @@ import { format, startOfDay, endOfDay, subDays, parseISO, startOfMonth } from 'd
 import { es } from 'date-fns/locale';
 import { useBranchStore } from '../stores/branchStore';
 import { useNavigate } from 'react-router-dom';
+import type { ProximaCitaRow } from '../types/agenda';
 
 interface DashboardStats {
   todayAppointments: number;
@@ -48,7 +49,7 @@ export function Dashboard() {
     pendingPaymentsCount: 0
   });
   const [last7DaysRevenue, setLast7DaysRevenue] = useState<ChartData[]>([]);
-  const [nextAppointments, setNextAppointments] = useState<any[]>([]);
+  const [nextAppointments, setNextAppointments] = useState<ProximaCitaRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -62,37 +63,60 @@ export function Dashboard() {
     const startOfMonthDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
 
     try {
-      // 1. Fetch Today's Appointments
-      const { count: appointmentsCount } = await supabase
-        .from('citas')
-        .select('*', { count: 'exact', head: true })
-        .eq('fecha_cita', today)
-        .eq('sucursal_id', sucursalActiva.id)
-        .not('estado', 'eq', 'Cancelada');
+      const [
+        { count: appointmentsCount },
+        { data: todayPayments },
+        { count: patientsCount },
+        { data: todayCitasAtendidas },
+        { data: weekPayments },
+        { data: nextCitas }
+      ] = await Promise.all([
+        supabase
+          .from('citas')
+          .select('*', { count: 'exact', head: true })
+          .eq('fecha_cita', today)
+          .eq('sucursal_id', sucursalActiva.id)
+          .not('estado', 'eq', 'Cancelada'),
+        supabase
+          .from('pagos')
+          .select('monto_total')
+          .eq('sucursal_id', sucursalActiva.id)
+          .gte('fecha_pago', startOfDay(new Date()).toISOString())
+          .lte('fecha_pago', endOfDay(new Date()).toISOString()),
+        supabase
+          .from('pacientes')
+          .select('*', { count: 'exact', head: true })
+          .eq('sucursal_id', sucursalActiva.id)
+          .gte('created_at', startOfMonthDate),
+        supabase
+          .from('citas')
+          .select('id')
+          .eq('fecha_cita', today)
+          .eq('sucursal_id', sucursalActiva.id)
+          .eq('estado', 'Atendida'),
+        supabase
+          .from('pagos')
+          .select('monto_total, fecha_pago')
+          .eq('sucursal_id', sucursalActiva.id)
+          .gte('fecha_pago', subDays(new Date(), 7).toISOString()),
+        supabase
+          .from('citas')
+          .select(`
+            id,
+            hora_cita,
+            motivo,
+            estado,
+            pacientes (nombres, apellidos),
+            podologos (nombres)
+          `)
+          .eq('fecha_cita', today)
+          .eq('sucursal_id', sucursalActiva.id)
+          .in('estado', ['Programada', 'Confirmada', 'En Sala de Espera'])
+          .order('hora_cita', { ascending: true })
+          .limit(5)
+      ]);
 
-      // 2. Fetch Today's Revenue
-      const { data: todayPayments } = await supabase
-        .from('pagos')
-        .select('monto_total')
-        .eq('sucursal_id', sucursalActiva.id)
-        .gte('fecha_pago', startOfDay(new Date()).toISOString())
-        .lte('fecha_pago', endOfDay(new Date()).toISOString());
-      
       const revenueToday = todayPayments?.reduce((sum, p) => sum + p.monto_total, 0) || 0;
-
-      // 3. Fetch New Patients this Month (Global for now)
-      const { count: patientsCount } = await supabase
-        .from('pacientes')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', startOfMonthDate);
-
-      // 4. Fetch Pending Payments (Citas de hoy atendidas pero sin pago)
-      const { data: todayCitasAtendidas } = await supabase
-        .from('citas')
-        .select('id')
-        .eq('fecha_cita', today)
-        .eq('sucursal_id', sucursalActiva.id)
-        .eq('estado', 'Atendida');
       
       const atendidasIds = todayCitasAtendidas?.map(c => c.id) || [];
       let pendingCount = 0;
@@ -106,13 +130,6 @@ export function Dashboard() {
         pendingCount = atendidasIds.filter(id => !pagadosIds.has(id)).length;
       }
 
-      // 5. Chart Data: Last 7 Days Revenue
-      const { data: weekPayments } = await supabase
-        .from('pagos')
-        .select('monto_total, fecha_pago')
-        .eq('sucursal_id', sucursalActiva.id)
-        .gte('fecha_pago', subDays(new Date(), 7).toISOString());
-      
       const chartMap = new Map();
       for (let i = 6; i >= 0; i--) {
         const d = subDays(new Date(), i);
@@ -133,24 +150,6 @@ export function Dashboard() {
       });
 
       setLast7DaysRevenue(Array.from(chartMap.values()));
-
-      // 6. Next Appointments
-      const { data: nextCitas } = await supabase
-        .from('citas')
-        .select(`
-          id,
-          hora_cita,
-          motivo,
-          estado,
-          pacientes (nombres, apellidos),
-          podologos (nombres)
-        `)
-        .eq('fecha_cita', today)
-        .eq('sucursal_id', sucursalActiva.id)
-        .in('estado', ['Programada', 'Confirmada', 'En Sala de Espera'])
-        .order('hora_cita', { ascending: true })
-        .limit(5);
-      
       setNextAppointments(nextCitas || []);
 
       setStats({
