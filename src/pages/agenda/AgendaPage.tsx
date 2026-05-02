@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Stethoscope, Edit, AlertTriangle, X, Search, Download, Gift } from 'lucide-react';
-import { WhatsAppIcon } from '../../components/WhatsAppIcon';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Search, Download, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
+import { CitasListPanel, formatearHora } from './components/CitasListPanel';
 import { ExportModal } from '../../components/ExportModal';
-import { CLINIC_INFO, SELLOS_PARA_GRATIS } from '../../config/clinicData';
 import { useBranchStore } from '../../stores/branchStore';
 import type { CsvColumn } from '../../lib/exportCsv';
 
@@ -35,16 +34,7 @@ export interface CitaList {
   adelanto_metodo_pago?: string | null;
 }
 
-const ESTADOS_MAP: Record<string, { color: string, border: string }> = {
-  'Programada': { color: 'bg-gray-100 text-gray-600', border: 'border-gray-200' },
-  'Confirmada': { color: 'bg-[#00C288]/10 text-[#00C288]', border: 'border-[#00C288]/30' },
-  'En Sala de Espera': { color: 'bg-orange-50 text-orange-600', border: 'border-orange-200' },
-  'Atendida': { color: 'bg-[#004975]/10 text-[#004975]', border: 'border-[#004975]/30' },
-  'Cancelada': { color: 'bg-red-50 text-red-600', border: 'border-red-200' },
-  'No Asistió': { color: 'bg-slate-100 text-slate-600', border: 'border-slate-300' },
-};
 
-const ESTADOS_OPCIONES = ['Programada', 'Confirmada', 'En Sala de Espera', 'Cancelada', 'No Asistió'];
 
 export function AgendaPage() {
   const navigate = useNavigate();
@@ -174,55 +164,10 @@ export function AgendaPage() {
     }
   };
 
-  const formatearHora = (horaFull: string) => {
-    if (!horaFull) return '';
-    const [hourStr, minStr] = horaFull.split(':');
-    const hour = parseInt(hourStr, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const h12 = hour % 12 || 12;
-    const h12Pad = String(h12).padStart(2, '0');
-    return `${h12Pad}:${minStr} ${ampm}`;
-  };
-  
-  const formatPhone = (phone: string | null) => {
-    if (!phone) return null;
-    let p = phone.replace(/\D/g, '');
-    if (p.length === 9) return `51${p}`;
-    return p;
-  };
-
-  const enviarWhatsApp = (cita: CitaList) => {
-    const wafmt = formatPhone(cita.pacientes.telefono);
-    if (!wafmt) return;
-    
-    const nombre = cita.pacientes.nombres.split(' ')[0];
-    const hora = formatearHora(cita.hora_cita);
-    
-    let mensaje = "";
-    
-    if (cita.estado === 'Cancelada') {
-      mensaje = `Hola ${nombre}, te escribimos de ${sucursalActiva?.nombre_comercial || CLINIC_INFO.nombre}.
-
-Te confirmamos que tu cita de hoy a las ${hora} hrs ha sido cancelada en nuestro sistema.
-
-Si deseas reprogramarla para otra fecha, puedes contactarnos al ${sucursalActiva?.telefono || CLINIC_INFO.telefono}.
-
-¡Gracias por avisarnos!`;
-    } else {
-      mensaje = `Hola ${nombre}, te saludamos de ${sucursalActiva?.nombre_comercial || CLINIC_INFO.nombre}.
-
-Queremos recordarte tu cita para hoy a las ${hora} hrs.
-
-Ubicación: ${sucursalActiva?.direccion || CLINIC_INFO.direccion}
-Contacto: ${sucursalActiva?.telefono || CLINIC_INFO.telefono}
-
-${CLINIC_INFO.mensaje_pie}
-
-¡Te esperamos!`;
-    }
-
-    const whatsappUrl = `https://wa.me/${wafmt}?text=${encodeURIComponent(mensaje)}`;
-    window.open(whatsappUrl, '_blank');
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedEspecialista('');
+    setSelectedEstado('');
   };
 
   return (
@@ -391,260 +336,33 @@ ${CLINIC_INFO.mensaje_pie}
         </label>
       </div>
 
-      {/* Grid Iterador de Citas Diarias */}
+      {/* Lista de Citas del Día */}
       {isLoading ? (
         <div className="flex justify-center py-32">
           <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00C288] rounded-full animate-spin" />
         </div>
-      ) : (() => {
-        // Shared Time Context for Filters & Render
-        const now = new Date();
-        const minHoy = now.getHours() * 60 + now.getMinutes();
-        const todayDateStr = format(now, 'yyyy-MM-dd');
-        const isToday = format(selectedDate, 'yyyy-MM-dd') === todayDateStr;
-
-        const citasFiltradas = citas.filter(cita => {
-          const searchMatch = searchTerm === '' || 
-            `${cita.pacientes.nombres} ${cita.pacientes.apellidos} ${cita.pacientes.numero_documento || ''}`
-            .toLowerCase().includes(searchTerm.toLowerCase());
-          const espMatch = selectedEspecialista === '' || cita.podologo_id === selectedEspecialista;
-          
-          let estMatch = true;
-          if (selectedEstado === 'Sin Resolver') {
-              const esEstadoFinal = cita.estado === 'Atendida' || cita.estado === 'Cancelada' || cita.estado === 'No Asistió';
-              const [cY, cM, cD] = cita.fecha_cita.split('-').map(Number);
-              const fechaCita = new Date(cY, cM - 1, cD);
-              const isOldDay = fechaCita < new Date(now.getFullYear(), now.getMonth(), now.getDate());
-              const isTodayAccurate = fechaCita.getTime() === new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-              const [hC, mC] = cita.hora_cita.split(':').map(Number);
-              const minutosCita = hC * 60 + mC;
-              const isExpiredHour = isTodayAccurate && (minutosCita + 60 < minHoy);
-              const esTurnoFantasma = (isOldDay || isExpiredHour) && !esEstadoFinal;
-              estMatch = esTurnoFantasma;
-          } else {
-              estMatch = selectedEstado === '' || cita.estado === selectedEstado;
+      ) : (
+        <CitasListPanel
+          citas={citas}
+          searchTerm={searchTerm}
+          selectedEspecialista={selectedEspecialista}
+          selectedEstado={selectedEstado}
+          isGlobalSearch={isGlobalSearch}
+          selectedDate={selectedDate}
+          sucursalActiva={sucursalActiva}
+          onEditCita={(cita) => {
+            setCitaEnEdicion(cita);
+            setIsDrawerOpen(true);
+          }}
+          onUpdateEstado={updateEstadoCita}
+          onNavigateToAtender={(pacienteId, citaId) =>
+            navigate(`/pacientes/${pacienteId}/historia?action=new_atencion&cita_id=${citaId}`)
           }
+          onClearFilters={clearFilters}
+        />
+      )}
 
-          return searchMatch && espMatch && estMatch;
-        });
-        
-        const isFiltering = searchTerm !== '' || selectedEspecialista !== '' || selectedEstado !== '';
-        
-        let renderCitas = [...citasFiltradas];
-        
-        if (!isGlobalSearch && isToday) {
-          const grupoA = renderCitas.filter(c => {
-            const [h, m] = c.hora_cita.split(':').map(Number);
-            return (h * 60 + m) >= minHoy - 30; // En curso o futuras
-          });
-          const grupoB = renderCitas.filter(c => {
-            const [h, m] = c.hora_cita.split(':').map(Number);
-            return (h * 60 + m) < minHoy - 30; // Pasadas
-          });
-          renderCitas = [...grupoA, ...grupoB];
-        }
 
-        if (citasFiltradas.length === 0) {
-          return (
-            <div className="text-center py-24 bg-white/50 rounded-3xl border border-gray-200 shadow-sm border-dashed">
-              <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-5 opacity-50" />
-              <h3 className="text-2xl font-black text-[#004975] mb-2 tracking-tight">Sin coincidencias</h3>
-              <p className="text-gray-500 font-bold max-w-sm mx-auto">No hay citas que coincidan con los filtros de búsqueda aplicados.</p>
-              {isFiltering && (
-                <button 
-                  onClick={() => { setSearchTerm(''); setSelectedEspecialista(''); setSelectedEstado(''); }}
-                  className="mt-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg font-bold transition-colors inline-flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" /> Limpiar Filtros
-                </button>
-              )}
-            </div>
-          );
-        }
-
-        return (
-          <>
-            {isFiltering && (
-              <div className="flex justify-between items-center px-2">
-                <span className="text-sm font-bold text-gray-500">Mostrando {citasFiltradas.length} resultados filtrados</span>
-                <button 
-                  onClick={() => { setSearchTerm(''); setSelectedEspecialista(''); setSelectedEstado(''); }}
-                  className="text-sm font-bold text-[#004975] hover:text-[#00C288] transition-colors flex items-center gap-1"
-                >
-                  <X className="w-4 h-4" /> Limpiar filtros
-                </button>
-              </div>
-            )}
-            <div className="grid grid-cols-1 gap-5">
-              {renderCitas.map((cita) => {
-                const wafmt = formatPhone(cita.pacientes.telefono);
-                const style = ESTADOS_MAP[cita.estado] || ESTADOS_MAP['Programada'];
-                const esEstadoFinal = cita.estado === 'Atendida' || cita.estado === 'Cancelada' || cita.estado === 'No Asistió';
-                
-                const [hC, mC] = cita.hora_cita.split(':').map(Number);
-                const minutosCita = hC * 60 + mC;
-                const isPasada = isToday && !isGlobalSearch && (minutosCita < minHoy - 30) && !esEstadoFinal;
-                const enCurso = isToday && !isGlobalSearch && (minHoy >= minutosCita && minHoy < minutosCita + 30) && !esEstadoFinal;
-
-                // Phantom Turn Logic
-                const [cY, cM, cD] = cita.fecha_cita.split('-').map(Number);
-                const fechaCita = new Date(cY, cM - 1, cD);
-                const isOldDay = fechaCita < new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const isTodayAccurate = fechaCita.getTime() === new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-                const isExpiredHour = isTodayAccurate && (minutosCita + 60 < minHoy);
-                const esTurnoFantasma = (isOldDay || isExpiredHour) && !esEstadoFinal;
-
-                return (
-                  <div 
-                    key={cita.id} 
-                    className={`rounded-2xl border shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] p-5 lg:p-6 hover:shadow-lg transition-all relative overflow-hidden flex flex-col xl:flex-row gap-4 xl:gap-8 items-start xl:items-center ${esEstadoFinal ? 'opacity-75 bg-gray-50 ' + style.border : esTurnoFantasma ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : isPasada ? ('opacity-60 bg-gray-50 grayscale-[0.3] ' + style.border) : ('bg-white ' + style.border)} ${enCurso ? 'ring-2 ring-[#00C288] ring-offset-2' : ''}`}
-                  >
-                {/* Timeline Color bar */}
-                <div className={`absolute left-0 inset-y-0 w-2.5 ${style.color.split(' ')[0]}`} />
-
-                {/* Hora Analógica */}
-                <div className="flex flex-row items-center gap-3 ml-3 xl:w-36 shrink-0">
-                  <div className={`p-2.5 rounded-xl ${style.color}`}>
-                    <Clock className="w-6 h-6 border-transparent" />
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    {esTurnoFantasma && (
-                      <span className="text-[10px] font-black text-white bg-red-500 uppercase tracking-wider mb-1 px-2 py-0.5 rounded-full w-fit shadow-sm flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" /> Sin Resolver
-                      </span>
-                    )}
-                    {enCurso && (
-                      <span className="text-[10px] font-black text-white bg-[#00C288] uppercase tracking-wider mb-1 px-2 py-0.5 rounded-full w-fit animate-pulse shadow-sm">
-                        En Curso
-                      </span>
-                    )}
-                    {isGlobalSearch && (
-                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
-                        {(() => {
-                          const [year, month, day] = cita.fecha_cita.split('-');
-                          const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                          return format(d, "EEE d MMM", { locale: es });
-                        })()}
-                      </span>
-                    )}
-                    <span className="text-2xl font-black text-[#004975] tracking-tighter whitespace-nowrap leading-none">{formatearHora(cita.hora_cita)}</span>
-                  </div>
-                </div>
-
-                {/* Patient Context Bundle */}
-                <div className="flex-1 min-w-0 bg-gray-50/50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <User className="w-5 h-5 text-[#00C288]" />
-                    <h4 className="text-lg font-black text-[#004975] truncate">
-                      {cita.pacientes.nombres} {cita.pacientes.apellidos}
-                    </h4>
-                  </div>
-                  <p className="text-sm font-bold text-gray-500 pl-7 truncate pr-4">{cita.motivo}</p>
-                  
-                  {cita.podologos && (
-                    <div className="flex items-center gap-1.5 mt-3 pl-7 flex-wrap">
-                      <div
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm"
-                        style={{
-                          backgroundColor: `${cita.podologos.color_etiqueta}12`,
-                          color: cita.podologos.color_etiqueta,
-                          borderColor: `${cita.podologos.color_etiqueta}30`
-                        }}
-                      >
-                        <Stethoscope className="w-4 h-4" />
-                        <span>Atiende: {cita.podologos.nombres}</span>
-                      </div>
-                      {Number(cita.adelanto || 0) > 0 && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm bg-[#00C288]/10 text-[#00C288] border-[#00C288]/20">
-                          Adelanto: S/ {Number(cita.adelanto).toFixed(2)}
-                          {cita.adelanto_metodo_pago && <span className="text-[9px] font-bold text-[#004975]/50 normal-case">({cita.adelanto_metodo_pago})</span>}
-                        </div>
-                      )}
-                      {Number(cita.pacientes.sellos || 0) >= SELLOS_PARA_GRATIS && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border shadow-sm bg-gradient-to-r from-[#00C288] to-[#00ab78] text-white border-[#00C288] animate-pulse">
-                          <Gift className="w-3.5 h-3.5" />
-                          Visita Gratis Disponible
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Native Actions (WhatsApp) */}
-                <div className="flex items-center gap-3 shrink-0">
-                  <button 
-                    onClick={() => {
-                      setCitaEnEdicion(cita);
-                      setIsDrawerOpen(true);
-                    }}
-                    disabled={esEstadoFinal}
-                    className={`flex justify-center items-center w-11 h-11 rounded-xl border shadow-sm transition-all ${
-                      esEstadoFinal 
-                        ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' 
-                        : 'bg-gray-50 text-gray-400 hover:text-[#004975] hover:bg-blue-50 border-gray-200 hover:border-blue-100 hover:-translate-y-0.5'
-                    }`}
-                    title={esEstadoFinal ? "Edición bloqueada" : "Editar Turno"}
-                  >
-                    <Edit className="w-5 h-5" />
-                  </button>
-
-                  {cita.estado === 'En Sala de Espera' ? (
-                    <button 
-                      onClick={() => navigate(`/pacientes/${cita.paciente_id}/historia?action=new_atencion&cita_id=${cita.id}`)}
-                      className="flex items-center justify-center gap-2 bg-[#00C288] text-white hover:bg-[#00ab78] px-5 py-2.5 hover:-translate-y-0.5 rounded-xl transition-all font-black tracking-wide shadow-md"
-                      title="Atender Paciente"
-                    >
-                      <Stethoscope className="w-5 h-5" />
-                      Atender
-                    </button>
-                  ) : cita.estado === 'Atendida' ? (
-                    <span className="text-[10px] font-black text-gray-400 px-5 py-3 bg-gray-50 rounded-xl border border-gray-200 shadow-sm uppercase tracking-widest text-center" title="Paciente Atendido">
-                      En Clínica
-                    </span>
-                  ) : wafmt ? (
-                    <button 
-                      onClick={() => enviarWhatsApp(cita)}
-                      className="flex items-center justify-center gap-2 bg-[#25D366]/10 text-[#075E54] hover:bg-[#25D366]/20 border border-[#25D366]/20 px-5 py-2.5 hover:-translate-y-0.5 rounded-xl transition-all font-black tracking-wide shadow-sm"
-                    >
-                      <WhatsAppIcon className="w-5 h-5 text-[#25D366] group-hover:scale-110 transition-transform" />
-                      Notificar
-                    </button>
-                  ) : (
-                    <span className="text-[10px] font-black text-gray-400 px-5 py-3 bg-gray-50 rounded-xl border border-gray-200 shadow-sm uppercase tracking-widest">Sin Celular</span>
-                  )}
-                </div>
-
-                {/* Native Dropdown Fases */}
-                <div className="relative shrink-0 w-full xl:w-56" onClick={(e) => e.stopPropagation()}>
-                  <div className={`relative rounded-xl border shadow-sm ${style.color} ${style.border} ${!esEstadoFinal ? 'transition-all hover:scale-[1.02]' : 'opacity-80'}`}>
-                    <select
-                      value={cita.estado}
-                      disabled={esEstadoFinal}
-                      onChange={(e) => updateEstadoCita(cita.id, e.target.value)}
-                      className={`w-full appearance-none bg-transparent px-5 py-3.5 text-[11px] font-black uppercase tracking-[0.2em] outline-none ${esEstadoFinal ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      {ESTADOS_OPCIONES.map((opc) => (
-                        <option key={opc} value={opc} className="text-gray-900 bg-white font-bold">
-                          {opc}
-                        </option>
-                      ))}
-                      {cita.estado === 'Atendida' && (
-                        <option value="Atendida" className="text-gray-900 bg-white font-bold">
-                          Atendida
-                        </option>
-                      )}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-5">
-                      <span className="text-xs opacity-70 divide-x divide-transparent">▼</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </>
-    )})()}
 
       <CitaDrawer 
         isOpen={isDrawerOpen} 

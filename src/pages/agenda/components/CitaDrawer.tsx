@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Search, AlertTriangle, Plus, CalendarDays, Clock, DollarSign, History } from 'lucide-react';
 import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { citaSchema, type CitaFormValues } from '../schemas/citaSchema';
 import { supabase } from '../../../lib/supabase';
@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { CitaList } from '../AgendaPage';
 import { useBranchStore } from '../../../stores/branchStore';
+import type { AtencionRow } from '../../../types/agenda';
 
 interface PacienteMin {
   id: string;
@@ -69,8 +70,10 @@ const getSmartInitialTime = (dateStr: string) => {
 
 export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdicion }: CitaDrawerProps) {
   const { sucursalActiva } = useBranchStore();
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<CitaFormValues>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, control, reset } = useForm<CitaFormValues>({
     resolver: zodResolver(citaSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onBlur',
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,9 +103,10 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   
-  const selectedPacienteId = watch('paciente_id');
+  // useWatch en lugar de watch() → re-render aislado por campo (sub-usewatch-over-watch)
+  const selectedPacienteId = useWatch({ control, name: 'paciente_id', defaultValue: '' });
+  const watchedFechaCita = useWatch({ control, name: 'fecha_cita', defaultValue: '' });
   const selectedPaciente = pacientes.find(p => p.id === selectedPacienteId);
-  const watchedFechaCita = watch('fecha_cita');
 
   // Fetch patient history when selected
   useEffect(() => {
@@ -129,7 +133,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
 
       // Count tratamientos frequency
       const freq: Record<string, number> = {};
-      atencionesData?.forEach((a: any) => {
+      (atencionesData as AtencionRow[] | null)?.forEach((a) => {
         (a.tratamientos_realizados || []).forEach((t: string) => { freq[t] = (freq[t] || 0) + 1; });
       });
       const tratamientosFrecuentes = Object.entries(freq)
@@ -137,7 +141,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         .slice(0, 5)
         .map(([name]) => name);
 
-      const ultimasVisitas: VisitaResumen[] = (atencionesData || []).slice(0, 5).map((a: any) => ({
+      const ultimasVisitas: VisitaResumen[] = ((atencionesData as AtencionRow[] | null) || []).slice(0, 5).map((a) => ({
         created_at: a.created_at,
         motivo_consulta: a.motivo_consulta,
         tratamientos_realizados: a.tratamientos_realizados || [],
@@ -184,14 +188,15 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
       if (citaEnEdicion) {
         reset({
           paciente_id: citaEnEdicion.paciente_id,
-          podologo_id: citaEnEdicion.podologo_id, // Could be empty string if any podologist removed, handled correctly by RHF validation if empty
-          // Actually podologo is in relation, so we have it
+          podologo_id: citaEnEdicion.podologo_id,
           fecha_cita: citaEnEdicion.fecha_cita,
           hora_cita: citaEnEdicion.hora_cita.substring(0, 5),
           motivo: citaEnEdicion.motivo,
-          servicios_preseleccionados: (citaEnEdicion as any).servicios_preseleccionados || [],
-          adelanto: (citaEnEdicion as any).adelanto ? String((citaEnEdicion as any).adelanto) : '',
-          adelanto_metodo_pago: (citaEnEdicion as any).adelanto_metodo_pago || '',
+          servicios_preseleccionados: (citaEnEdicion as CitaList & { servicios_preseleccionados?: string[] }).servicios_preseleccionados ?? [],
+          adelanto: (citaEnEdicion as CitaList & { adelanto?: number }).adelanto != null
+            ? String((citaEnEdicion as CitaList & { adelanto?: number }).adelanto)
+            : '',
+          adelanto_metodo_pago: (citaEnEdicion as CitaList & { adelanto_metodo_pago?: string }).adelanto_metodo_pago ?? '',
         });
 
         // Add to pacientes mock to resolve selected state instantly

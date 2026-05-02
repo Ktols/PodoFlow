@@ -3,6 +3,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Calendar, Users, BriefcaseMedical, UserCog, ChevronDown, Receipt, Tag, Package, ShoppingCart, Store, UsersRound } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
 const cajaSubitems = [
   { tab: 'cobros', name: 'Cobros Pendientes', icon: Receipt },
   { tab: 'precios', name: 'Lista de Precios', icon: Tag },
@@ -10,7 +15,7 @@ const cajaSubitems = [
   { tab: 'ventas', name: 'Ventas', icon: ShoppingCart },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { perfil } = useAuthStore();
   const isDueno = perfil?.rol_nombre === 'dueno';
   const isAdmin = perfil?.rol_nombre === 'administrativo';
@@ -57,7 +62,21 @@ export function Sidebar() {
     });
 
   return (
-    <aside className="w-64 bg-secondary text-white h-full flex flex-col">
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar Content */}
+      <aside 
+        className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-secondary text-white flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
       <div className="p-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <span className="text-primary">G&C</span> Podología
@@ -121,5 +140,6 @@ export function Sidebar() {
         <p className="text-sm text-gray-400">© 2026 G&C Admin</p>
       </div>
     </aside>
+    </>
   );
 }

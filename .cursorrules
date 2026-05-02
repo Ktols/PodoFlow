@@ -1,0 +1,8 @@
+# Cursor Rules for EasyPod / PodoFlow
+
+Read `AI_INSTRUCTIONS.md` at the root of the repository before making any code changes.
+
+Key Reminders:
+1. **Always use Mobile-First Tailwind CSS** (`sm:`, `md:` prefixing).
+2. **Multi-tenant isolation:** Always filter by `sucursal_id` from `useBranchStore()`.
+3. **TypeScript:** Strict typing is enforced.

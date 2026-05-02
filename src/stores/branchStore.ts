@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import type { UsuarioSucursalRow } from '../types/agenda';
 
 interface Sucursal {
   id: string;
@@ -48,9 +49,9 @@ export const useBranchStore = create<BranchState>((set) => ({
           .select('sucursales (*)')
           .eq('usuario_id', usuarioId);
 
-        sucursales = (data || [])
-          .map((us: any) => us.sucursales)
-          .filter((s: Sucursal | null) => s && s.activa);
+        sucursales = (data as unknown as UsuarioSucursalRow[] || [])
+          .map((us) => us.sucursales)
+          .filter((s): s is NonNullable<typeof s> => s !== null && s.activa);
       }
 
       set({
