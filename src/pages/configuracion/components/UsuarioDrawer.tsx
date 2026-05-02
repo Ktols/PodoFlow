@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { X, UserPlus, Building2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import toast from 'react-hot-toast';
+import type { Rol } from '../../../types/entities';
 
 const usuarioSchema = z.object({
   email: z.string().email('Ingrese un correo electrónico válido'),
@@ -17,13 +18,7 @@ const usuarioSchema = z.object({
 
 type UsuarioFormValues = z.infer<typeof usuarioSchema>;
 
-interface Rol {
-  id: string;
-  nombre: string;
-  descripcion: string;
-}
-
-interface Sucursal {
+interface SucursalMin {
   id: string;
   nombre_comercial: string;
 }
@@ -38,7 +33,7 @@ interface UsuarioDrawerProps {
 export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDrawerProps) {
   const isEditing = !!usuario;
   const [roles, setRoles] = useState<Rol[]>([]);
-  const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+  const [sucursales, setSucursales] = useState<SucursalMin[]>([]);
   const [selectedSucursales, setSelectedSucursales] = useState<Set<string>>(new Set());
 
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<UsuarioFormValues>({

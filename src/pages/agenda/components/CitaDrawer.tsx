@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle, Plus, CalendarDays, Clock, DollarSign, History } from 'lucide-react';
+import { X, Search, AlertTriangle, Plus, Clock, DollarSign, History } from 'lucide-react';
 import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,9 +8,11 @@ import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { CitaList } from '../AgendaPage';
+import type { CitaList } from '../../../types/entities';
 import { useBranchStore } from '../../../stores/branchStore';
 import type { AtencionRow } from '../../../types/agenda';
+import { TIME_OPTIONS } from '../../../constants';
+import { DatePicker } from '../../../components/DatePicker';
 
 interface PacienteMin {
   id: string;
@@ -33,19 +35,6 @@ interface CitaDrawerProps {
   selectedDate?: Date;
   citaEnEdicion?: CitaList | null;
 }
-
-const TIME_OPTIONS = [
-  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", 
-  "20:00", "20:30", "21:00", "21:30", "22:00"
-].map(time => {
-  const [h, m] = time.split(':');
-  const hNum = parseInt(h, 10);
-  const ampm = hNum >= 12 ? 'PM' : 'AM';
-  const h12 = (hNum % 12) || 12;
-  return { value: time, label: `${h12.toString().padStart(2, '0')}:${m} ${ampm}` };
-});
 
 const getSmartInitialTime = (dateStr: string) => {
   const today = new Date();
@@ -569,14 +558,11 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               {/* Fecha */}
               <div>
                 <label className="block text-sm font-bold text-[#004975] mb-2">Fecha <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <CalendarDays className="w-4 h-4 text-[#00C288] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="date"
-                    className={`w-full border rounded-xl py-3 pl-10 pr-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#00C288] outline-none font-medium transition-colors shadow-sm ${errors.fecha_cita ? 'border-red-500' : 'border-gray-200'}`}
-                    {...register('fecha_cita')}
-                  />
-                </div>
+                <DatePicker
+                  value={watchedFechaCita || ''}
+                  onChange={(v) => setValue('fecha_cita', v, { shouldValidate: true })}
+                  className={errors.fecha_cita ? '[&>button]:border-red-500' : ''}
+                />
                 {/* Hint: day name */}
                 {watchedFechaCita && (() => {
                   const [y, m, d] = watchedFechaCita.split('-').map(Number);

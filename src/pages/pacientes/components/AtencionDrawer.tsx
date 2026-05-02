@@ -5,7 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { atencionSchema, type AtencionFormValues } from '../schemas/atencionSchema';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { type Atencion } from '../HistoriaClinicaPage';
+import type { Atencion } from '../../../types/entities';
+import { DatePicker } from '../../../components/DatePicker';
 
 interface AtencionDrawerProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ interface AtencionDrawerProps {
 }
 
 export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencion, originCitaId }: AtencionDrawerProps) {
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, reset } = useForm<AtencionFormValues>({
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting }, reset } = useForm<AtencionFormValues>({
     resolver: zodResolver(atencionSchema),
   });
 
@@ -391,10 +392,9 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
                 <CalendarDays className="w-4 h-4 text-[#00C288]" />
                 Próxima Cita Sugerida
               </label>
-              <input
-                type="date"
-                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary transition-colors"
-                {...register('proxima_cita')}
+              <DatePicker
+                value={watch('proxima_cita') || ''}
+                onChange={(v) => setValue('proxima_cita', v)}
               />
               <p className="text-xs text-gray-400 mt-1">Fecha sugerida para la siguiente visita del paciente.</p>
             </div>

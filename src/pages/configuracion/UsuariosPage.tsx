@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
 import { Plus, Edit2, UserCog, ShieldCheck, Shield, Stethoscope, Mail, Phone } from 'lucide-react';
 import { UsuarioDrawer } from './components/UsuarioDrawer';
 
@@ -65,6 +66,7 @@ export function UsuariosPage() {
       setUsuarios(data || []);
     } catch (err) {
       console.error('Error fetching usuarios:', err);
+      toast.error('Error al cargar los usuarios');
     } finally {
       setLoading(false);
     }

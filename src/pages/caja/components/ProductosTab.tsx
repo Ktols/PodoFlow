@@ -3,22 +3,10 @@ import { Plus, Pencil, Package, Search, Trash2, AlertTriangle, Download, X, Boxe
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ProductoDrawer } from './ProductoDrawer';
-import { CATEGORIAS_PRODUCTO } from '../constants';
+import { CATEGORIAS_PRODUCTO } from '../../../constants';
 import { ExportModal } from '../../../components/ExportModal';
 import type { CsvColumn } from '../../../lib/exportCsv';
-
-export interface Producto {
-  id: string;
-  codigo: string | null;
-  nombre: string;
-  descripcion: string | null;
-  categoria: string;
-  precio: number;
-  stock: number;
-  stock_minimo: number;
-  estado: boolean;
-  created_at?: string;
-}
+import type { Producto } from '../../../types/entities';
 
 type StockFilter = 'todos' | 'en_stock' | 'stock_bajo' | 'sin_stock';
 

@@ -7,28 +7,8 @@ import { es } from 'date-fns/locale';
 import { VentaDrawer } from './VentaDrawer';
 import { ExportModal } from '../../../components/ExportModal';
 import type { CsvColumn } from '../../../lib/exportCsv';
-
-interface VentaItem {
-  producto_id: string;
-  nombre: string;
-  precio_unitario: number;
-  cantidad: number;
-  subtotal: number;
-}
-
-interface Venta {
-  id: string;
-  paciente_id: string | null;
-  items: VentaItem[];
-  subtotal: number;
-  descuento: number;
-  total: number;
-  metodo_pago: string;
-  estado: string;
-  notas: string | null;
-  created_at: string;
-  pacientes: { nombres: string; apellidos: string; numero_documento: string } | null;
-}
+import type { Venta } from '../../../types/entities';
+import { DatePicker } from '../../../components/DatePicker';
 
 export function VentasTab() {
   const [ventas, setVentas] = useState<Venta[]>([]);
@@ -103,14 +83,9 @@ export function VentasTab() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 p-1.5">
-              <Calendar className="w-4 h-4 text-[#00C288] ml-2" />
-              <input type="date" value={fechaDesde}
-                onChange={(e) => { setFechaDesde(e.target.value); if (e.target.value > fechaHasta) setFechaHasta(e.target.value); }}
-                className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-bold text-[#004975] bg-white focus:ring-2 focus:ring-[#00C288] outline-none w-[140px]" />
+              <DatePicker value={fechaDesde} onChange={(v) => { setFechaDesde(v); if (v > fechaHasta) setFechaHasta(v); }} />
               <span className="text-xs font-bold text-gray-400">a</span>
-              <input type="date" value={fechaHasta}
-                onChange={(e) => { setFechaHasta(e.target.value); if (e.target.value < fechaDesde) setFechaDesde(e.target.value); }}
-                className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-bold text-[#004975] bg-white focus:ring-2 focus:ring-[#00C288] outline-none w-[140px]" />
+              <DatePicker value={fechaHasta} onChange={(v) => { setFechaHasta(v); if (v < fechaDesde) setFechaDesde(v); }} />
             </div>
             {!isRangeToday && (
               <button onClick={() => { setFechaDesde(todayStr); setFechaHasta(todayStr); }}

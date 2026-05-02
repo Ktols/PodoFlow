@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { especialistaSchema, type EspecialistaFormValues } from '../schemas/especialistaSchema';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { type Especialista } from '../EspecialistasPage';
+import type { Especialista } from '../../../types/entities';
 
 interface EspecialistaDrawerProps {
   isOpen: boolean;

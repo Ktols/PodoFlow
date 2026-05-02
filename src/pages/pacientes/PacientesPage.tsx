@@ -5,26 +5,10 @@ import { WhatsAppIcon } from '../../components/WhatsAppIcon';
 import { PacienteDrawer } from './components/PacienteDrawer';
 import { ExportModal } from '../../components/ExportModal';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
 import type { CsvColumn } from '../../lib/exportCsv';
-
-export interface Paciente {
-  id: string;
-  tipo_documento: string;
-  numero_documento: string;
-  nombres: string;
-  apellidos: string;
-  telefono: string | null;
-  alergias_alertas: string | null;
-  fecha_nacimiento?: string | null;
-  diabetes?: boolean;
-  hipertension?: boolean;
-  enfermedad_vascular?: boolean;
-  tratamiento_oncologico?: boolean;
-  alergias_detalle?: string | null;
-  sexo?: string | null;
-  sellos?: number;
-  sellos_canjeados?: number;
-}
+import type { Paciente } from '../../types/entities';
+import { PATIENT_CATEGORIES } from '../../constants';
 
 export function PacientesPage() {
   const navigate = useNavigate();
@@ -85,7 +69,10 @@ export function PacientesPage() {
       setPacientes(cleaned);
       setVisitCounts(counts);
     }
-    if (error) console.error("Error cargando pacientes:", error);
+    if (error) {
+      console.error("Error cargando pacientes:", error);
+      toast.error('Error al cargar los pacientes');
+    }
     setIsLoading(false);
   };
 
@@ -117,14 +104,6 @@ export function PacientesPage() {
     }
     window.open(`https://wa.me/${cleaned}`, '_blank');
   };
-
-  const PATIENT_CATEGORIES = [
-    { key: 'nuevo', label: 'Nuevo', min: 0, max: 0, color: 'bg-blue-50 text-blue-700 border-blue-200', desc: 'Sin visitas registradas' },
-    { key: 'inicial', label: 'Inicial', min: 1, max: 1, color: 'bg-sky-50 text-sky-700 border-sky-200', desc: '1 visita realizada' },
-    { key: 'regular', label: 'Regular', min: 2, max: 4, color: 'bg-amber-50 text-amber-700 border-amber-200', desc: '2 a 4 visitas' },
-    { key: 'recurrente', label: 'Recurrente', min: 5, max: 9, color: 'bg-[#00C288]/10 text-[#00C288] border-[#00C288]/30', desc: '5 a 9 visitas' },
-    { key: 'fiel', label: 'Fiel', min: 10, max: Infinity, color: 'bg-purple-50 text-purple-700 border-purple-200', desc: '10+ visitas' },
-  ];
 
   const getPatientCategory = (visits: number) => {
     return PATIENT_CATEGORIES.find(c => visits >= c.min && visits <= c.max) || PATIENT_CATEGORIES[0];
