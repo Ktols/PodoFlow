@@ -24,7 +24,7 @@ jobs:
           node-version: '20'
 
       - name: Install Dependencies
-        run: npm ci || (rm -rf node_modules package-lock.json && npm install)
+        run: rm -rf node_modules && npm install
 
       - name: Code Healthcheck (Validación de Types y Compilación)
         run: npm run build
