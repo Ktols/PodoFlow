@@ -103,6 +103,7 @@ export function Dashboard() {
         supabase
           .from('ventas')
           .select('total')
+          .eq('sucursal_id', sucursalActiva.id)
           .gte('created_at', startOfDay(new Date()).toISOString())
           .lte('created_at', endOfDay(new Date()).toISOString()),
         supabase
@@ -125,6 +126,7 @@ export function Dashboard() {
         supabase
           .from('ventas')
           .select('total, created_at')
+          .eq('sucursal_id', sucursalActiva.id)
           .gte('created_at', subDays(new Date(), 7).toISOString()),
         supabase
           .from('citas')
