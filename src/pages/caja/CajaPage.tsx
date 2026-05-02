@@ -1,13 +1,11 @@
-import { Receipt, Tag, Package, ShoppingCart } from 'lucide-react';
+import { Receipt, ShoppingCart } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { ListaPreciosTab } from './components/ListaPreciosTab';
 import { CobrosPendientesTab } from './components/CobrosPendientesTab';
-import { ProductosTab } from './components/ProductosTab';
 import { VentasTab } from './components/VentasTab';
 
-type TabKey = 'cobros' | 'precios' | 'productos' | 'ventas';
+type TabKey = 'cobros' | 'ventas';
 
-const VALID_TABS: TabKey[] = ['cobros', 'precios', 'productos', 'ventas'];
+const VALID_TABS: TabKey[] = ['cobros', 'ventas'];
 
 interface TabConfig {
   key: TabKey;
@@ -17,8 +15,6 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { key: 'cobros', label: 'Cobros Pendientes', icon: <Receipt className="w-4 h-4" /> },
-  { key: 'precios', label: 'Lista de Precios', icon: <Tag className="w-4 h-4" /> },
-  { key: 'productos', label: 'Productos', icon: <Package className="w-4 h-4" /> },
   { key: 'ventas', label: 'Ventas', icon: <ShoppingCart className="w-4 h-4" /> },
 ];
 
@@ -38,7 +34,7 @@ export function CajaPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-[#004975] tracking-tight">Caja</h1>
-          <p className="text-sm font-bold text-gray-400 mt-1">Gestión financiera y catálogo de servicios</p>
+          <p className="text-sm font-bold text-gray-400 mt-1">Gestión financiera: cobros y ventas del día</p>
         </div>
       </div>
 
@@ -66,14 +62,6 @@ export function CajaPage() {
       <div className="animate-in fade-in duration-300">
         {activeTab === 'cobros' && (
           <CobrosPendientesTab />
-        )}
-
-        {activeTab === 'precios' && (
-          <ListaPreciosTab />
-        )}
-
-        {activeTab === 'productos' && (
-          <ProductosTab />
         )}
 
         {activeTab === 'ventas' && (

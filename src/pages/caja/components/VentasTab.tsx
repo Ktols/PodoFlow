@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { ShoppingCart, Plus, Search, Calendar, User, Eye, Download, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { VentaDrawer } from './VentaDrawer';
 import { ExportModal } from '../../../components/ExportModal';
 import { useAuthStore } from '../../../stores/authStore';
+import { useBranchStore } from '../../../stores/branchStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
 import type { Venta } from '../../../types/entities';
 import { DatePicker } from '../../../components/DatePicker';
@@ -26,17 +27,20 @@ export function VentasTab() {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   const { perfil } = useAuthStore();
+  const { sucursalActiva } = useBranchStore();
   const isDueno = perfil?.rol_nombre === 'dueno';
 
   const isRangeToday = fechaDesde === todayStr && fechaHasta === todayStr;
 
   const fetchVentas = async () => {
+    if (!sucursalActiva?.id) return;
     setIsLoading(true);
     const { data, error } = await supabase
       .from('ventas')
       .select('*, pacientes (nombres, apellidos, numero_documento)')
-      .gte('created_at', `${fechaDesde}T00:00:00`)
-      .lte('created_at', `${fechaHasta}T23:59:59`)
+      .eq('sucursal_id', sucursalActiva.id)
+      .gte('created_at', startOfDay(parseISO(fechaDesde)).toISOString())
+      .lte('created_at', endOfDay(parseISO(fechaHasta)).toISOString())
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -50,7 +54,7 @@ export function VentasTab() {
 
   useEffect(() => {
     fetchVentas();
-  }, [fechaDesde, fechaHasta]);
+  }, [fechaDesde, fechaHasta, sucursalActiva?.id]);
 
   const ventasFiltradas = ventas.filter(v => {
     if (filterMetodo && v.metodo_pago !== filterMetodo) return false;

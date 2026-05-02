@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import type { VentaItem } from '../../../types/entities';
 import { METODOS_PAGO_NOMBRES } from '../../../constants';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface PacienteMin {
   id: string;
@@ -31,6 +32,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
   const [metodoPago, setMetodoPago] = useState('Efectivo');
   const [notas, setNotas] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { sucursalActiva } = useBranchStore();
 
   // Paciente search
   const [pacienteSearch, setPacienteSearch] = useState('');
@@ -151,6 +153,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
       // Insert venta
       const { error: ventaError } = await supabase.from('ventas').insert([{
         paciente_id: pacienteId || null,
+        sucursal_id: sucursalActiva?.id || null,
         items: items.map(i => ({
           producto_id: i.producto_id,
           nombre: i.nombre,
