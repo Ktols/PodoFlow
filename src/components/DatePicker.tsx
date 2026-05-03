@@ -17,7 +17,21 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
   const [inputValue, setInputValue] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [popoverCoords, setPopoverCoords] = useState<{ top: number, left: number, position: 'top' | 'bottom' } | null>(null);
+  const [popoverCoords, setPopoverCoords] = useState<{ position: 'top' | 'bottom' }>({ position: 'bottom' });
+
+  const calculateCoords = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const hasSpaceBelow = spaceBelow > 350;
+      setPopoverCoords({ position: hasSpaceBelow ? 'bottom' : 'top' });
+    }
+  };
+
+  const openPicker = () => {
+    calculateCoords();
+    setIsOpen(true);
+  };
 
   // Sincronizar valor interno con prop 'value'
   useEffect(() => {
@@ -37,25 +51,6 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
   
   const parsedMaxDate = maxDate ? parse(maxDate, 'yyyy-MM-dd', new Date()) : null;
   const parsedMinDate = minDate ? parse(minDate, 'yyyy-MM-dd', new Date()) : null;
-
-  const calculateCoords = () => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const hasSpaceBelow = spaceBelow > 350;
-      
-      setPopoverCoords({
-        top: hasSpaceBelow ? rect.bottom + 5 : rect.top - 340,
-        left: Math.min(rect.left, window.innerWidth - 300),
-        position: hasSpaceBelow ? 'bottom' : 'top'
-      });
-    }
-  };
-
-  const openPicker = () => {
-    calculateCoords();
-    setIsOpen(true);
-  };
 
   // Recalcular si cambia el tamaño de ventana
   useEffect(() => {
@@ -163,16 +158,12 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
         )}
       </div>
 
-      {isOpen && popoverCoords && (
+      {isOpen && (
         <div 
           ref={popoverRef}
-          style={{ 
-            position: 'fixed', 
-            top: popoverCoords.top, 
-            left: popoverCoords.left,
-            zIndex: 9999 
-          }}
-          className="w-[280px] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 animate-in zoom-in-95 fade-in duration-200"
+          className={`absolute left-0 w-[280px] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 animate-in zoom-in-95 fade-in duration-200 z-[30000] ${
+            popoverCoords.position === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
+          }`}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
