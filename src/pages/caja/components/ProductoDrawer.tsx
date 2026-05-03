@@ -2,10 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Package, Hash, Boxes } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-<<<<<<< HEAD
 import { useBranchStore } from '../../../stores/branchStore';
-=======
->>>>>>> origin/main
 import type { Producto } from '../../../types/entities';
 import { CATEGORIAS_PRODUCTO } from '../../../constants';
 

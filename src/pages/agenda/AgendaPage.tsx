@@ -35,11 +35,8 @@ export function AgendaPage() {
   const [isGlobalSearch, setIsGlobalSearch] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState<Date>(new Date());
-<<<<<<< HEAD
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
-=======
->>>>>>> origin/main
 
   // Export state
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -199,11 +196,8 @@ export function AgendaPage() {
                 onClick={() => {
                   setCalendarViewDate(selectedDate);
                   setIsCalendarOpen(!isCalendarOpen);
-<<<<<<< HEAD
                   setShowYearPicker(false);
                   setShowMonthPicker(false);
-=======
->>>>>>> origin/main
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-xl transition-colors group"
               >
@@ -218,7 +212,6 @@ export function AgendaPage() {
               {isCalendarOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsCalendarOpen(false)} />
-<<<<<<< HEAD
                   <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-[280px] animate-in zoom-in-95 fade-in duration-150">
                     {/* Calendar header */}
                     <div className="flex items-center justify-between mb-4">
@@ -291,47 +284,20 @@ export function AgendaPage() {
                       <button
                         onClick={() => setCalendarViewDate(addMonths(calendarViewDate, 1))}
                         className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
-=======
-                  <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-[300px] animate-in zoom-in-95 fade-in duration-150">
-                    {/* Calendar header */}
-                    <div className="flex items-center justify-between mb-3">
-                      <button
-                        onClick={() => setCalendarViewDate(subMonths(calendarViewDate, 1))}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <span className="text-sm font-black text-[#004975] capitalize">
-                        {format(calendarViewDate, "MMMM yyyy", { locale: es })}
-                      </span>
-                      <button
-                        onClick={() => setCalendarViewDate(addMonths(calendarViewDate, 1))}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
->>>>>>> origin/main
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
 
                     {/* Day names */}
-<<<<<<< HEAD
                     <div className="grid grid-cols-7 mb-2">
                       {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => (
                         <div key={d} className="text-center text-[10px] font-black text-gray-300 uppercase">{d}</div>
-=======
-                    <div className="grid grid-cols-7 mb-1">
-                      {['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map(d => (
-                        <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">{d}</div>
->>>>>>> origin/main
                       ))}
                     </div>
 
                     {/* Calendar grid */}
-<<<<<<< HEAD
                     <div className="grid grid-cols-7 gap-1">
-=======
-                    <div className="grid grid-cols-7">
->>>>>>> origin/main
                       {(() => {
                         const monthStart = startOfMonth(calendarViewDate);
                         const monthEnd = endOfMonth(calendarViewDate);
@@ -351,7 +317,6 @@ export function AgendaPage() {
                                 setSelectedDate(day);
                                 setIsCalendarOpen(false);
                               }}
-<<<<<<< HEAD
                               className={`h-8 w-full rounded-lg text-xs font-bold transition-all ${
                                 isSelected
                                   ? 'bg-[#00C288] text-white shadow-lg shadow-[#00C288]/30'
@@ -360,16 +325,6 @@ export function AgendaPage() {
                                     : isCurrentMonth
                                       ? 'text-[#004975] hover:bg-gray-50'
                                       : 'text-gray-200'
-=======
-                              className={`h-9 w-full rounded-lg text-sm font-bold transition-all ${
-                                isSelected
-                                  ? 'bg-[#00C288] text-white shadow-sm'
-                                  : isTodayDay
-                                    ? 'bg-[#00C288]/10 text-[#00C288] hover:bg-[#00C288]/20'
-                                    : isCurrentMonth
-                                      ? 'text-[#004975] hover:bg-gray-100'
-                                      : 'text-gray-300 hover:bg-gray-50'
->>>>>>> origin/main
                               }`}
                             >
                               {format(day, 'd')}
@@ -379,7 +334,6 @@ export function AgendaPage() {
                       })()}
                     </div>
 
-<<<<<<< HEAD
                     <button
                       onClick={() => {
                         setSelectedDate(new Date());
@@ -389,49 +343,6 @@ export function AgendaPage() {
                     >
                       Hoy
                     </button>
-=======
-                    {/* Quick actions */}
-                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                      <button
-                        onClick={() => {
-                          setSelectedDate(new Date());
-                          setIsCalendarOpen(false);
-                        }}
-                        className="flex-1 text-xs font-black text-[#00C288] bg-[#00C288]/10 hover:bg-[#00C288]/20 px-3 py-2 rounded-lg transition-colors"
-                      >
-                        Hoy
-                      </button>
-                      <select
-                        value={calendarViewDate.getMonth()}
-                        onChange={(e) => {
-                          const newDate = new Date(calendarViewDate);
-                          newDate.setMonth(Number(e.target.value));
-                          setCalendarViewDate(newDate);
-                        }}
-                        className="flex-1 text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-[#00C288] capitalize"
-                      >
-                        {Array.from({ length: 12 }, (_, i) => (
-                          <option key={i} value={i}>
-                            {format(new Date(2024, i, 1), 'MMMM', { locale: es })}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={calendarViewDate.getFullYear()}
-                        onChange={(e) => {
-                          const newDate = new Date(calendarViewDate);
-                          newDate.setFullYear(Number(e.target.value));
-                          setCalendarViewDate(newDate);
-                        }}
-                        className="w-20 text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-[#00C288]"
-                      >
-                        {Array.from({ length: 11 }, (_, i) => {
-                          const year = new Date().getFullYear() - 5 + i;
-                          return <option key={year} value={year}>{year}</option>;
-                        })}
-                      </select>
-                    </div>
->>>>>>> origin/main
                   </div>
                 </>
               )}
