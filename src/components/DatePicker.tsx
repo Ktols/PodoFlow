@@ -21,6 +21,9 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
 
+  const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : null;
+  const [viewDate, setViewDate] = useState(selectedDate || new Date());
+
   // Sincronizar valor interno con prop 'value'
   useEffect(() => {
     if (value) {
@@ -34,9 +37,6 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
     }
   }, [value]);
 
-  const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : null;
-  const [viewDate, setViewDate] = useState(selectedDate || new Date());
-  
   const parsedMaxDate = maxDate ? parse(maxDate, 'yyyy-MM-dd', new Date()) : null;
   const parsedMinDate = minDate ? parse(minDate, 'yyyy-MM-dd', new Date()) : null;
 
@@ -44,8 +44,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      const hasSpaceBelow = spaceBelow > 350;
-      setPopoverCoords({ position: hasSpaceBelow ? 'bottom' : 'top' });
+      setPopoverCoords({ position: spaceBelow > 350 ? 'bottom' : 'top' });
     }
   };
 
@@ -66,7 +65,6 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
     let val = e.target.value.replace(/\D/g, '');
     if (val.length > 8) val = val.substring(0, 8);
     
-    // Auto-formateo DD/MM/AAAA
     let formatted = val;
     if (val.length > 2) formatted = val.substring(0, 2) + '/' + val.substring(2);
     if (val.length > 4) formatted = formatted.substring(0, 5) + '/' + formatted.substring(5);
@@ -113,10 +111,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
 
   const currentYearLimit = parsedMaxDate ? parsedMaxDate.getFullYear() : new Date().getFullYear() + 10;
   const minYearLimit = parsedMinDate ? parsedMinDate.getFullYear() : 1920;
-
-  const years = Array.from({ length: currentYearLimit - minYearLimit + 1 }, (_, i) => {
-    return currentYearLimit - i;
-  });
+  const years = Array.from({ length: currentYearLimit - minYearLimit + 1 }, (_, i) => currentYearLimit - i);
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -155,7 +150,6 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
             popoverCoords.position === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
           }`}
         >
-          {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <button type="button" onClick={() => setViewDate(subMonths(viewDate, 1))} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
               <ChevronLeft className="w-4 h-4" />
@@ -165,25 +159,20 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
               <button 
                 type="button"
                 onClick={() => { setShowMonthPicker(!showMonthPicker); setShowYearPicker(false); }}
-                className={`text-xs font-black px-2 py-1 rounded-lg capitalize transition-colors ${
-                  showMonthPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'
-                }`}
+                className={`text-xs font-black px-2 py-1 rounded-lg capitalize transition-colors ${showMonthPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'}`}
               >
                 {format(viewDate, 'MMMM', { locale: es })}
               </button>
               <button 
                 type="button"
                 onClick={() => { setShowYearPicker(!showYearPicker); setShowMonthPicker(false); }}
-                className={`text-xs font-black px-2 py-1 rounded-lg transition-colors ${
-                  showYearPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'
-                }`}
+                className={`text-xs font-black px-2 py-1 rounded-lg transition-colors ${showYearPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'}`}
               >
                 {viewDate.getFullYear()}
               </button>
 
-              {/* Custom Year Picker Overlay */}
               {showYearPicker && (
-                <div className="absolute top-full left-0 mt-1 w-28 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[30001] scrollbar-thin scrollbar-thumb-gray-200 p-1">
+                <div className="absolute top-full left-0 mt-1 w-28 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[30001] p-1 scrollbar-thin scrollbar-thumb-gray-200">
                   {years.map(y => (
                     <button
                       key={y}
@@ -194,9 +183,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
                         setViewDate(d);
                         setShowYearPicker(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors ${
-                        y === viewDate.getFullYear() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'
-                      }`}
+                      className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors ${y === viewDate.getFullYear() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'}`}
                     >
                       {y}
                     </button>
@@ -204,9 +191,8 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
                 </div>
               )}
 
-              {/* Custom Month Picker Overlay */}
               {showMonthPicker && (
-                <div className="absolute top-full left-0 mt-1 w-32 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[30001] scrollbar-thin scrollbar-thumb-gray-200 p-1">
+                <div className="absolute top-full left-0 mt-1 w-32 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[30001] p-1 scrollbar-thin scrollbar-thumb-gray-200">
                   {Array.from({ length: 12 }, (_, i) => (
                     <button
                       key={i}
@@ -217,9 +203,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
                         setViewDate(d);
                         setShowMonthPicker(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors capitalize ${
-                        i === viewDate.getMonth() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'
-                      }`}
+                      className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors capitalize ${i === viewDate.getMonth() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'}`}
                     >
                       {format(new Date(2024, i, 1), 'MMMM', { locale: es })}
                     </button>
@@ -228,12 +212,11 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
               )}
             </div>
 
-            <button type="button" onClick={() => addMonths(viewDate, 1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
-              <ChevronRight className="w-4 h-4" onClick={() => setViewDate(addMonths(viewDate, 1))} />
+            <button type="button" onClick={() => setViewDate(addMonths(viewDate, 1))} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Grid */}
           <div className="grid grid-cols-7 mb-2">
             {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => (
               <div key={d} className="text-center text-[10px] font-black text-gray-300 uppercase">{d}</div>
@@ -243,7 +226,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
           <div className="grid grid-cols-7 gap-1">
             {days.map(day => {
               const isCurrMonth = isSameMonth(day, viewDate);
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
+              const isSelected = !!selectedDate && isSameDay(day, selectedDate);
               const isDisabled = (parsedMaxDate && day > parsedMaxDate) || (parsedMinDate && day < parsedMinDate);
               
               return (
