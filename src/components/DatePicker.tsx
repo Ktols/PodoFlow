@@ -1,37 +1,25 @@
-import { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { format, isValid, parse, isSameDay, isSameMonth, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import React, { useState, useEffect, useRef } from 'react';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek, isValid, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 interface DatePickerProps {
-  value: string; // yyyy-MM-dd
-  onChange: (value: string) => void;
-  className?: string;
+  value: string;
+  onChange: (date: string) => void;
   placeholder?: string;
-  maxDate?: string; // yyyy-MM-dd
-  minDate?: string; // yyyy-MM-dd
+  className?: string;
+  maxDate?: string;
+  minDate?: string;
 }
 
-export function DatePicker({ value, onChange, className = '', placeholder = 'DD/MM/AAAA', maxDate, minDate }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", className = "", maxDate, minDate }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [popoverCoords, setPopoverCoords] = useState<{ position: 'top' | 'bottom' }>({ position: 'bottom' });
-
-  const calculateCoords = () => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const hasSpaceBelow = spaceBelow > 350;
-      setPopoverCoords({ position: hasSpaceBelow ? 'bottom' : 'top' });
-    }
-  };
-
-  const openPicker = () => {
-    calculateCoords();
-    setIsOpen(true);
-  };
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
 
   // Sincronizar valor interno con prop 'value'
   useEffect(() => {
@@ -52,18 +40,19 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
   const parsedMaxDate = maxDate ? parse(maxDate, 'yyyy-MM-dd', new Date()) : null;
   const parsedMinDate = minDate ? parse(minDate, 'yyyy-MM-dd', new Date()) : null;
 
-  // Recalcular si cambia el tamaño de ventana
-  useEffect(() => {
-    if (isOpen) {
-      window.addEventListener('resize', calculateCoords);
-      window.addEventListener('scroll', calculateCoords, true);
-      calculateCoords(); // Asegurar cálculo inmediato
+  const calculateCoords = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const hasSpaceBelow = spaceBelow > 350;
+      setPopoverCoords({ position: hasSpaceBelow ? 'bottom' : 'top' });
     }
-    return () => {
-      window.removeEventListener('resize', calculateCoords);
-      window.removeEventListener('scroll', calculateCoords, true);
-    };
-  }, [isOpen]);
+  };
+
+  const openPicker = () => {
+    calculateCoords();
+    setIsOpen(true);
+  };
 
   const isInvalid = inputValue.length === 10 && (() => {
     const parsedDate = parse(inputValue, 'dd/MM/yyyy', new Date());
@@ -87,10 +76,8 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
     if (val.length === 8) {
       const parsedDate = parse(formatted, 'dd/MM/yyyy', new Date());
       if (isValid(parsedDate)) {
-        // Validar contra max/min
         if (parsedMaxDate && parsedDate > parsedMaxDate) return;
         if (parsedMinDate && parsedDate < parsedMinDate) return;
-        
         onChange(format(parsedDate, 'yyyy-MM-dd'));
         setViewDate(parsedDate);
       }
@@ -102,13 +89,16 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
     if (parsedMinDate && date < parsedMinDate) return;
     onChange(format(date, 'yyyy-MM-dd'));
     setIsOpen(false);
+    setShowYearPicker(false);
+    setShowMonthPicker(false);
   };
 
-  // Close on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setShowYearPicker(false);
+        setShowMonthPicker(false);
       }
     };
     if (isOpen) document.addEventListener('mousedown', handleClick);
@@ -167,41 +157,79 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <button type="button" onClick={() => setViewDate(subMonths(viewDate, 1))} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400">
+            <button type="button" onClick={() => setViewDate(subMonths(viewDate, 1))} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
             
-            <div className="flex items-center gap-1">
-              <select 
-                value={viewDate.getMonth()} 
-                onChange={(e) => {
-                  const d = new Date(viewDate);
-                  d.setMonth(Number(e.target.value));
-                  setViewDate(d);
-                }}
-                className="text-xs font-black text-[#004975] bg-transparent border-none p-0 focus:ring-0 cursor-pointer capitalize"
+            <div className="flex items-center gap-1 relative">
+              <button 
+                type="button"
+                onClick={() => { setShowMonthPicker(!showMonthPicker); setShowYearPicker(false); }}
+                className={`text-xs font-black px-2 py-1 rounded-lg capitalize transition-colors ${
+                  showMonthPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'
+                }`}
               >
-                {Array.from({ length: 12 }, (_, i) => (
-                  <option key={i} value={i}>{format(new Date(2024, i, 1), 'MMMM', { locale: es })}</option>
-                ))}
-              </select>
-              <select 
-                value={viewDate.getFullYear()} 
-                onChange={(e) => {
-                  const d = new Date(viewDate);
-                  d.setFullYear(Number(e.target.value));
-                  setViewDate(d);
-                }}
-                className="text-xs font-black text-[#004975] bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                {format(viewDate, 'MMMM', { locale: es })}
+              </button>
+              <button 
+                type="button"
+                onClick={() => { setShowYearPicker(!showYearPicker); setShowMonthPicker(false); }}
+                className={`text-xs font-black px-2 py-1 rounded-lg transition-colors ${
+                  showYearPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'
+                }`}
               >
-                {years.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+                {viewDate.getFullYear()}
+              </button>
+
+              {/* Custom Year Picker Overlay */}
+              {showYearPicker && (
+                <div className="absolute top-full left-0 mt-1 w-28 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[30001] scrollbar-thin scrollbar-thumb-gray-200 p-1">
+                  {years.map(y => (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => {
+                        const d = new Date(viewDate);
+                        d.setFullYear(y);
+                        setViewDate(d);
+                        setShowYearPicker(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors ${
+                        y === viewDate.getFullYear() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Custom Month Picker Overlay */}
+              {showMonthPicker && (
+                <div className="absolute top-full left-0 mt-1 w-32 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[30001] scrollbar-thin scrollbar-thumb-gray-200 p-1">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        const d = new Date(viewDate);
+                        d.setMonth(i);
+                        setViewDate(d);
+                        setShowMonthPicker(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors capitalize ${
+                        i === viewDate.getMonth() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'
+                      }`}
+                    >
+                      {format(new Date(2024, i, 1), 'MMMM', { locale: es })}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <button type="button" onClick={() => setViewDate(addMonths(viewDate, 1))} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400">
-              <ChevronRight className="w-4 h-4" />
+            <button type="button" onClick={() => addMonths(viewDate, 1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
+              <ChevronRight className="w-4 h-4" onClick={() => setViewDate(addMonths(viewDate, 1))} />
             </button>
           </div>
 
