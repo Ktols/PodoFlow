@@ -130,18 +130,18 @@ export function HistoriaClinicaPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-12 print:max-w-none print:space-y-4 print:pb-0">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-12 print:max-w-none print:space-y-1.5 print:pb-0 print:text-[11px]">
       
       {/* Membrete de Impresión Oculto en Web */}
-      <div className="hidden print:block mb-6 border-b border-gray-300 pb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <Activity className="w-8 h-8 text-[#00C288]" />
+      <div className="hidden print:block mb-2 border-b border-gray-300 pb-2">
+        <div className="flex items-center gap-2 mb-0.5">
+          <Activity className="w-5 h-5 text-[#00C288]" />
           <div>
-            <h1 className="text-2xl font-bold text-[#004975] leading-none">Centro Podológico G&C</h1>
-            <h2 className="text-lg font-medium text-gray-500 mt-1">Historia Clínica Podológica</h2>
+            <h1 className="text-base font-bold text-[#004975] leading-none">Centro Podológico G&C</h1>
+            <h2 className="text-xs font-medium text-gray-500">Historia Clínica Podológica</h2>
           </div>
         </div>
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-[10px] font-medium text-gray-500">
           Fecha de Impresión: {format(new Date(), "d 'de' MMMM, yyyy - HH:mm", { locale: es })}
         </p>
       </div>
@@ -155,12 +155,12 @@ export function HistoriaClinicaPage() {
       </button>
 
       {/* Header Profile Panel */}
-      <div className="bg-background-container rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center print:shadow-none print:border print:border-gray-300 print:break-inside-avoid print:p-4">
+      <div className="bg-background-container rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center print:shadow-none print:border print:border-gray-300 print:break-inside-avoid print:p-2 print:gap-1">
         <div>
-          <h1 className="text-3xl font-bold text-[#004975] print:text-2xl">
+          <h1 className="text-3xl font-bold text-[#004975] print:text-lg">
             {paciente.nombres} {paciente.apellidos}
           </h1>
-          <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-3 text-sm text-gray-600 font-medium print:mt-2">
+          <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-3 text-sm text-gray-600 font-medium print:mt-0.5 print:text-[10px] print:gap-1">
             <span className="bg-blue-50 text-[#004975] px-3 py-1 rounded-full border border-blue-100 print:border-none print:bg-transparent print:p-0 print:mr-4">
               <strong>Doc:</strong> {isPodologo ? '***' : `${paciente.numero_documento} (${paciente.tipo_documento})`}
             </span>
@@ -305,8 +305,8 @@ export function HistoriaClinicaPage() {
         </div>
 
         {/* Print-only title */}
-        <h2 className="hidden print:flex text-xl font-bold text-secondary mb-6 items-center gap-2">
-          <Clock className="w-5 h-5 text-gray-400" />
+        <h2 className="hidden print:flex text-sm font-bold text-secondary mb-2 items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-gray-400" />
           {printAtencionId ? 'Detalle de Atención' : 'Historial de Evolución'}
         </h2>
 
@@ -316,7 +316,7 @@ export function HistoriaClinicaPage() {
             <p className="text-gray-500 font-medium">Aún no hay atenciones registradas.</p>
           </div>
         ) : activeTab === 'historial' ? (
-          <div className="relative border-l-2 border-gray-100 ml-3 md:ml-4 space-y-8 print:border-l-0 print:ml-0 print:space-y-4">
+          <div className="relative border-l-2 border-gray-100 ml-3 md:ml-4 space-y-8 print:border-l-0 print:ml-0 print:space-y-0">
             {atenciones.map((atencion) => (
               <div key={atencion.id} className={`relative pl-6 md:pl-8 group print:pl-0 ${printAtencionId && printAtencionId !== atencion.id ? 'print:hidden' : ''}`}>
                 {/* Visual Node */}
@@ -324,9 +324,9 @@ export function HistoriaClinicaPage() {
                 
                 {/* Timeline Card */}
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all print:shadow-none print:p-0 print:border-none print:bg-transparent">
-                  <div className="flex justify-between items-start mb-5 pb-3 border-b border-gray-50 print:border-gray-200">
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-[#004975] font-bold">
-                      <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0 print:text-gray-500" />
+                  <div className="flex justify-between items-start mb-5 pb-3 border-b border-gray-50 print:border-gray-200 print:mb-2 print:pb-1.5">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-[#004975] font-bold print:text-xs print:gap-1">
+                      <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0 print:text-gray-500 print:w-3 print:h-3" />
                       {format(new Date(atencion.created_at), "EEEE d 'de' MMMM, yyyy - HH:mm", { locale: es })}
                       
                       {atencion.podologos && (
@@ -363,39 +363,39 @@ export function HistoriaClinicaPage() {
                     </div>
                   </div>
                   
-                  <div className="space-y-5">
+                  <div className="space-y-5 print:space-y-1.5">
                     <div className="print:break-inside-avoid">
-                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1.5">Motivo de Consulta</h4>
-                      <p className="text-secondary font-semibold text-lg">{atencion.motivo_consulta}</p>
+                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1.5 print:text-[9px] print:mb-0.5">Motivo de Consulta</h4>
+                      <p className="text-secondary font-semibold text-lg print:text-sm">{atencion.motivo_consulta}</p>
                     </div>
 
                     {atencion.diagnostico && (
-                      <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100/50 print:break-inside-avoid">
-                        <h4 className="text-xs font-bold text-blue-800 tracking-wider uppercase mb-1">Diagnóstico</h4>
-                        <p className="text-blue-900 text-sm whitespace-pre-wrap">{atencion.diagnostico}</p>
+                      <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100/50 print:break-inside-avoid print:p-1.5 print:rounded">
+                        <h4 className="text-xs font-bold text-blue-800 tracking-wider uppercase mb-1 print:text-[9px] print:mb-0.5">Diagnóstico</h4>
+                        <p className="text-blue-900 text-sm whitespace-pre-wrap print:text-[11px]">{atencion.diagnostico}</p>
                       </div>
                     )}
 
                     {(atencion.evaluacion_piel?.length || atencion.evaluacion_unas?.length) ? (
                       <div className="print:break-inside-avoid">
-                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Evaluación Física</h4>
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2 print:text-[9px] print:mb-1">Evaluación Física</h4>
                         <div className="flex flex-wrap gap-2">
                           {atencion.evaluacion_piel?.map(item => (
-                            <span key={item} className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider shadow-sm">Piel: {item}</span>
+                            <span key={item} className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider shadow-sm print:text-[9px] print:px-1 print:py-0.5">Piel: {item}</span>
                           ))}
                           {atencion.evaluacion_unas?.map(item => (
-                            <span key={item} className="bg-purple-50 text-purple-900 border border-purple-200 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider shadow-sm">Uñas: {item}</span>
+                            <span key={item} className="bg-purple-50 text-purple-900 border border-purple-200 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider shadow-sm print:text-[9px] print:px-1 print:py-0.5">Uñas: {item}</span>
                           ))}
                         </div>
                       </div>
                     ) : null}
                     
                     <div className="print:break-inside-avoid">
-                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Tratamientos Aplicados</h4>
+                      <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2 print:text-[9px] print:mb-1">Tratamientos Aplicados</h4>
                       {atencion.tratamientos_realizados && atencion.tratamientos_realizados.length > 0 ? (
                         <div className="flex flex-wrap gap-2 mb-3">
                           {atencion.tratamientos_realizados.map(item => (
-                            <span key={item} className="bg-blue-50 text-blue-800 border border-blue-100 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm">
+                            <span key={item} className="bg-blue-50 text-blue-800 border border-blue-100 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm print:text-[10px] print:px-1.5 print:py-0.5">
                               {item}
                             </span>
                           ))}
@@ -403,8 +403,8 @@ export function HistoriaClinicaPage() {
                       ) : null}
                       
                       {atencion.tratamiento && (
-                        <div className="bg-gray-50/80 rounded-lg p-4 border border-gray-100/80 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mt-2">
-                          <span className="font-bold text-gray-500/80 block mb-1 text-[11px] uppercase tracking-wider">Observaciones Adicionales:</span>
+                        <div className="bg-gray-50/80 rounded-lg p-4 border border-gray-100/80 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mt-2 print:p-1.5 print:mt-1 print:text-[11px] print:leading-snug">
+                          <span className="font-bold text-gray-500/80 block mb-1 text-[11px] uppercase tracking-wider print:text-[9px] print:mb-0.5">Observaciones Adicionales:</span>
                           {atencion.tratamiento}
                         </div>
                       )}
@@ -412,10 +412,10 @@ export function HistoriaClinicaPage() {
 
                     {atencion.productos_usados && atencion.productos_usados.length > 0 && (
                       <div className="print:break-inside-avoid">
-                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Productos Utilizados</h4>
-                        <div className="flex flex-wrap gap-2">
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2 print:text-[9px] print:mb-1">Productos Utilizados</h4>
+                        <div className="flex flex-wrap gap-2 print:gap-1">
                           {atencion.productos_usados.map(item => (
-                            <span key={item} className="bg-[#00C288]/10 text-[#004975] border border-[#00C288]/20 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm">
+                            <span key={item} className="bg-[#00C288]/10 text-[#004975] border border-[#00C288]/20 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm print:text-[10px] print:px-1.5 print:py-0.5">
                               {item}
                             </span>
                           ))}
@@ -425,10 +425,10 @@ export function HistoriaClinicaPage() {
 
                     {atencion.medicamentos_recetados && atencion.medicamentos_recetados.length > 0 && (
                       <div className="print:break-inside-avoid">
-                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Medicamentos Recetados</h4>
-                        <div className="flex flex-wrap gap-2">
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2 print:text-[9px] print:mb-1">Medicamentos Recetados</h4>
+                        <div className="flex flex-wrap gap-2 print:gap-1">
                           {atencion.medicamentos_recetados.map(item => (
-                            <span key={item} className="bg-purple-50 text-purple-800 border border-purple-100 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm">
+                            <span key={item} className="bg-purple-50 text-purple-800 border border-purple-100 px-2.5 py-1 rounded-md text-[13px] font-bold shadow-sm print:text-[10px] print:px-1.5 print:py-0.5">
                               {item}
                             </span>
                           ))}
@@ -437,25 +437,25 @@ export function HistoriaClinicaPage() {
                     )}
 
                     {atencion.recomendaciones && (
-                      <div className="bg-green-50/50 rounded-lg p-3 border border-green-100/50 print:break-inside-avoid">
-                        <h4 className="text-xs font-bold text-green-800 tracking-wider uppercase mb-1">Recomendaciones</h4>
-                        <p className="text-green-900 text-sm whitespace-pre-wrap">{atencion.recomendaciones}</p>
+                      <div className="bg-green-50/50 rounded-lg p-3 border border-green-100/50 print:break-inside-avoid print:p-1.5 print:rounded">
+                        <h4 className="text-xs font-bold text-green-800 tracking-wider uppercase mb-1 print:text-[9px] print:mb-0.5">Recomendaciones</h4>
+                        <p className="text-green-900 text-sm whitespace-pre-wrap print:text-[11px]">{atencion.recomendaciones}</p>
                       </div>
                     )}
 
                     {atencion.indicaciones && (
-                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 print:color-adjust-exact print:break-inside-avoid">
-                        <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5">Indicaciones al Paciente</h4>
-                        <p className="text-yellow-900 text-sm whitespace-pre-wrap">{atencion.indicaciones}</p>
+                      <div className="bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 print:color-adjust-exact print:break-inside-avoid print:p-1.5 print:rounded">
+                        <h4 className="text-xs font-bold text-yellow-800 tracking-wider uppercase mb-1.5 print:text-[9px] print:mb-0.5">Indicaciones al Paciente</h4>
+                        <p className="text-yellow-900 text-sm whitespace-pre-wrap print:text-[11px]">{atencion.indicaciones}</p>
                       </div>
                     )}
 
                     {atencion.proxima_cita && (
-                      <div className="flex items-center gap-2 bg-[#00C288]/5 rounded-lg p-3 border border-[#00C288]/20 print:break-inside-avoid">
-                        <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0" />
+                      <div className="flex items-center gap-2 bg-[#00C288]/5 rounded-lg p-3 border border-[#00C288]/20 print:break-inside-avoid print:p-1.5 print:gap-1.5 print:rounded">
+                        <CalendarDays className="w-4 h-4 text-[#00C288] shrink-0 print:w-3 print:h-3" />
                         <div>
-                          <span className="text-[10px] font-black text-[#00C288] uppercase tracking-wider">Próxima cita sugerida</span>
-                          <p className="text-sm font-bold text-[#004975]">
+                          <span className="text-[10px] font-black text-[#00C288] uppercase tracking-wider print:text-[8px]">Próxima cita sugerida</span>
+                          <p className="text-sm font-bold text-[#004975] print:text-[11px]">
                             {format(new Date(atencion.proxima_cita + 'T12:00:00'), "EEEE d 'de' MMMM, yyyy", { locale: es })}
                           </p>
                         </div>
@@ -463,14 +463,14 @@ export function HistoriaClinicaPage() {
                     )}
                     
                     {atencion.fotos && atencion.fotos.length > 0 && (
-                      <div className="mt-4 print:mt-3 print:break-inside-avoid">
-                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Imágenes Clínicas</h4>
-                        <div className="flex flex-wrap gap-3">
+                      <div className="mt-4 print:mt-1.5 print:break-inside-avoid">
+                        <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2 print:text-[9px] print:mb-1">Imágenes Clínicas</h4>
+                        <div className="flex flex-wrap gap-3 print:gap-1.5">
                           {atencion.fotos.map((foto, idx) => (
                             <button 
                               key={idx}
                               onClick={() => setSelectedImage({ url: foto, atencion })}
-                              className="relative w-20 h-20 md:w-24 md:h-24 print:w-16 print:h-16 rounded-lg border border-gray-200 overflow-hidden hover:ring-2 hover:ring-[#00C288] hover:border-transparent transition-all shadow-sm group print:shadow-none print:hover:ring-0"
+                              className="relative w-20 h-20 md:w-24 md:h-24 print:w-12 print:h-12 rounded-lg border border-gray-200 overflow-hidden hover:ring-2 hover:ring-[#00C288] hover:border-transparent transition-all shadow-sm group print:shadow-none print:hover:ring-0"
                               title="Cargar visualización completa"
                             >
                               <img 

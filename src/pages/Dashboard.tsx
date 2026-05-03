@@ -197,6 +197,7 @@ export function Dashboard() {
 
       setLast7DaysRevenue(Array.from(chartMap.values()));
       setNextAppointments((nextCitas as unknown as ProximaCitaRow[]) || []);
+
       // Filtrar productos con stock bajo o agotado (comparación columna vs columna)
       const filteredLowStock = (alertProducts as LowStockProduct[] || [])
         .filter(p => p.stock === 0 || (p.stock_minimo > 0 && p.stock <= p.stock_minimo))
