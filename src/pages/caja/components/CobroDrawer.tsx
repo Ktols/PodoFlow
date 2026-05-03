@@ -192,6 +192,9 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     if (!metodoPago) {
       newErrors.metodo = 'Seleccione un método de pago.';
     }
+    if (metodoPago && metodoPago !== 'Efectivo' && !codigoReferencia.trim()) {
+      newErrors.referencia = 'Ingrese el código de referencia o número de operación.';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -525,6 +528,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               referencia={codigoReferencia}
               onReferenciaChange={setCodigoReferencia}
               error={errors.metodo}
+              referenciaError={errors.referencia}
             />
 
           </form>

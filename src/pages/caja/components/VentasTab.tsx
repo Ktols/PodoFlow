@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Search, Calendar, User, Eye, Download, X } from 'lucide-react';
+import { ShoppingCart, Plus, Search, Calendar, User, Download, X, Printer } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -11,12 +11,15 @@ import { useBranchStore } from '../../../stores/branchStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
 import type { Venta } from '../../../types/entities';
 import { DatePicker } from '../../../components/DatePicker';
+import { TicketPrint, type TicketData } from './TicketPrint';
 
 export function VentasTab() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [ventaDetalle, setVentaDetalle] = useState<Venta | null>(null);
+  const [ticketData, setTicketData] = useState<TicketData | null>(null);
+  const [ticketOpen, setTicketOpen] = useState(false);
 
   // Filtros
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -74,6 +77,25 @@ export function VentasTab() {
   const formatCurrency = (n: number) => `S/ ${n.toFixed(2)}`;
   const formatHora = (dateStr: string) => format(new Date(dateStr), 'hh:mm a');
   const formatFecha = (dateStr: string) => format(new Date(dateStr), "d MMM yyyy", { locale: es });
+
+  const handlePrintVenta = (venta: Venta) => {
+    setTicketData({
+      numeroTicket: venta.numero_ticket || undefined,
+      pacienteNombre: venta.pacientes ? `${venta.pacientes.nombres} ${venta.pacientes.apellidos}` : 'Cliente general',
+      pacienteDocumento: venta.pacientes?.numero_documento,
+      fechaPago: venta.created_at,
+      servicios: (venta.items || []).map(item => ({
+        nombre: item.nombre,
+        precio: item.precio_unitario,
+        cantidad: item.cantidad,
+        tipo: 'producto' as const,
+      })),
+      montoTotal: venta.total,
+      metodoPago: venta.metodo_pago,
+      codigoReferencia: venta.codigo_referencia || undefined,
+    });
+    setTicketOpen(true);
+  };
 
   const ventaCsvColumns: CsvColumn<Venta>[] = [
     { key: '', header: 'Fecha', format: (r) => formatFecha(r.created_at) },
@@ -176,9 +198,7 @@ export function VentasTab() {
                   <th className="text-left px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Fecha</th>
                   <th className="text-left px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Paciente</th>
                   <th className="text-left px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Productos</th>
-                  <th className="text-center px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Método</th>
-                  <th className="text-right px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Total</th>
-                  <th className="text-center px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] w-20">Ver</th>
+                  <th className="text-center px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Cobro</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,16 +234,20 @@ export function VentasTab() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-600">{venta.metodo_pago}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="font-black text-[#004975] tabular-nums">{formatCurrency(venta.total)}</span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button onClick={() => setVentaDetalle(venta)}
-                        className="p-2 text-gray-300 hover:text-[#004975] hover:bg-[#004975]/5 rounded-xl transition-all group-hover:text-gray-400">
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <div className="flex flex-col items-center gap-1">
+                        {venta.numero_ticket && (
+                          <span className="text-[10px] font-bold text-gray-400 tabular-nums">TKT-{String(venta.numero_ticket).padStart(6, '0')}</span>
+                        )}
+                        <span className="font-black text-[#004975] tabular-nums text-sm">{formatCurrency(venta.total)}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">{venta.metodo_pago}</span>
+                        {venta.codigo_referencia && (
+                          <span className="text-[10px] font-bold text-gray-500 tabular-nums">{venta.codigo_referencia}</span>
+                        )}
+                        <button onClick={() => handlePrintVenta(venta)}
+                          className="text-[10px] font-black text-[#004975] hover:text-[#00C288] uppercase tracking-wider transition-colors flex items-center gap-1 mt-0.5">
+                          <Printer className="w-3 h-3" /> Imprimir Ticket
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -306,15 +330,23 @@ export function VentasTab() {
                 </div>
               )}
             </div>
-            <div className="p-5 border-t border-gray-100">
+            <div className="p-5 border-t border-gray-100 flex gap-3">
               <button onClick={() => setVentaDetalle(null)}
-                className="w-full py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold rounded-xl border border-gray-200 transition-colors">
+                className="flex-1 py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold rounded-xl border border-gray-200 transition-colors">
                 Cerrar
+              </button>
+              <button onClick={() => { handlePrintVenta(ventaDetalle); setVentaDetalle(null); }}
+                className="flex-1 py-3 bg-[#004975] hover:bg-[#003a5e] text-white font-black rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+                <Printer className="w-4 h-4" />
+                Imprimir Ticket
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Ticket Print */}
+      <TicketPrint isOpen={ticketOpen} onClose={() => setTicketOpen(false)} data={ticketData} />
 
       {/* Export */}
       <ExportModal

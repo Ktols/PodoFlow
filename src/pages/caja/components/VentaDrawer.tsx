@@ -156,8 +156,16 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
 
   const formatCurrency = (n: number) => `S/ ${n.toFixed(2)}`;
 
+  const [ventaErrors, setVentaErrors] = useState<Record<string, string>>({});
+
   const handleSubmit = async () => {
     if (items.length === 0) { toast.error('Agrega al menos un producto'); return; }
+    const errs: Record<string, string> = {};
+    if (metodoPago !== 'Efectivo' && !codigoReferencia.trim()) {
+      errs.referencia = 'Ingrese el código de referencia o número de operación.';
+    }
+    if (Object.keys(errs).length > 0) { setVentaErrors(errs); return; }
+    setVentaErrors({});
     setIsSubmitting(true);
 
     try {
@@ -178,6 +186,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
         metodo_pago: metodoPago,
         estado: 'Completada',
         notas: notas.trim() || null,
+        codigo_referencia: codigoReferencia.trim() || null,
       }]);
 
       if (ventaError) throw ventaError;
@@ -371,6 +380,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
             onChange={setMetodoPago}
             referencia={codigoReferencia}
             onReferenciaChange={setCodigoReferencia}
+            referenciaError={ventaErrors.referencia}
           />
 
           {/* Notas */}

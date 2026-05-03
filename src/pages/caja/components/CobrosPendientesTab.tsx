@@ -220,17 +220,18 @@ export function CobrosPendientesTab() {
   };
 
   const handlePrintTicket = async (cita: CitaCaja, pago: PagoRegistrado) => {
-    // Fetch servicios de la atención vinculada para listar en ticket
-    let serviciosTicket: { nombre: string; precio: number }[] = [];
+    let ticketItems: { nombre: string; precio: number; cantidad?: number; tipo?: 'servicio' | 'producto' }[] = [];
+
     const { data: atencionData } = await supabase
       .from('atenciones')
-      .select('tratamientos_realizados')
+      .select('tratamientos_realizados, medicamentos_recetados')
       .eq('cita_id', cita.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (atencionData?.tratamientos_realizados && Array.isArray(atencionData.tratamientos_realizados)) {
+    // Servicios realizados
+    if (atencionData?.tratamientos_realizados?.length) {
       const { data: serviciosData } = await supabase
         .from('servicios')
         .select('nombre, precio_base')
@@ -238,13 +239,25 @@ export function CobrosPendientesTab() {
         .in('nombre', atencionData.tratamientos_realizados);
 
       if (serviciosData) {
-        serviciosTicket = serviciosData.map(s => ({ nombre: s.nombre, precio: s.precio_base }));
+        ticketItems.push(...serviciosData.map(s => ({ nombre: s.nombre, precio: s.precio_base, tipo: 'servicio' as const })));
       }
     }
 
-    // Fallback: si no hay servicios vinculados, mostrar genérico
-    if (serviciosTicket.length === 0) {
-      serviciosTicket = [{ nombre: 'Servicio Podológico', precio: pago.monto_total }];
+    // Productos medicados comprados
+    if (atencionData?.medicamentos_recetados?.length) {
+      const { data: prodsData } = await supabase
+        .from('productos')
+        .select('nombre, precio')
+        .eq('sucursal_id', sucursalActiva?.id)
+        .in('nombre', atencionData.medicamentos_recetados);
+
+      if (prodsData) {
+        ticketItems.push(...prodsData.map(p => ({ nombre: p.nombre, precio: p.precio, tipo: 'producto' as const })));
+      }
+    }
+
+    if (ticketItems.length === 0) {
+      ticketItems = [{ nombre: 'Servicio Podológico', precio: pago.monto_total }];
     }
 
     setTicketData({
@@ -253,7 +266,7 @@ export function CobrosPendientesTab() {
       pacienteDocumento: cita.pacientes.numero_documento,
       pacienteTelefono: cita.pacientes.telefono,
       fechaPago: pago.fecha_pago || new Date().toISOString(),
-      servicios: serviciosTicket,
+      servicios: ticketItems,
       montoTotal: pago.monto_total,
       metodoPago: pago.metodo_pago,
       codigoReferencia: pago.codigo_referencia,

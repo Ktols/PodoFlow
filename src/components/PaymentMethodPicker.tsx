@@ -1,19 +1,21 @@
 import { CreditCard, Hash } from 'lucide-react';
 import { METODOS_PAGO } from '../constants';
 
-function getReferenciaLabel(metodo: string): { label: string; placeholder: string } {
+function getReferenciaLabel(metodo: string): { label: string; placeholder: string; required: boolean } {
   switch (metodo) {
     case 'Tarjeta':
-      return { label: 'Código AP / N° de Voucher', placeholder: 'Ej: 123456' };
+      return { label: 'Código AP / N° de Voucher', placeholder: 'Ej: 123456', required: true };
     case 'Yape':
     case 'Plin':
     case 'Transferencia':
-      return { label: 'Número de Operación', placeholder: 'Ej: OP-789012' };
+      return { label: 'Número de Operación', placeholder: 'Ej: OP-789012', required: true };
     case 'Efectivo':
     default:
-      return { label: 'N° de Recibo interno (Opcional)', placeholder: 'Ej: REC-001' };
+      return { label: 'N° de Recibo interno (Opcional)', placeholder: 'Ej: REC-001', required: false };
   }
 }
+
+export { getReferenciaLabel };
 
 interface PaymentMethodPickerProps {
   value: string;
@@ -21,6 +23,7 @@ interface PaymentMethodPickerProps {
   referencia?: string;
   onReferenciaChange?: (ref: string) => void;
   error?: string;
+  referenciaError?: string;
   compact?: boolean;
 }
 
@@ -30,6 +33,7 @@ export function PaymentMethodPicker({
   referencia = '',
   onReferenciaChange,
   error,
+  referenciaError,
   compact = false,
 }: PaymentMethodPickerProps) {
   const ref = getReferenciaLabel(value);
@@ -70,20 +74,25 @@ export function PaymentMethodPicker({
       {value && onReferenciaChange && (
         <div className="animate-in fade-in slide-in-from-top-2 duration-200">
           <label className={`block font-bold text-[#004975] mb-1.5 ${compact ? 'text-xs' : 'text-sm'}`}>
-            {ref.label}
+            {ref.label} {ref.required && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Hash className="w-3.5 h-3.5 text-gray-400" />
+              <Hash className={`w-3.5 h-3.5 ${referenciaError ? 'text-red-400' : 'text-gray-400'}`} />
             </div>
             <input
               type="text"
               placeholder={ref.placeholder}
-              className={`w-full pl-9 pr-3 border border-gray-200 bg-gray-50 focus:bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#00C288] transition-all shadow-sm font-bold ${compact ? 'py-2.5 text-xs' : 'py-3 text-sm'}`}
+              className={`w-full pl-9 pr-3 bg-gray-50 focus:bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#00C288] transition-all shadow-sm font-bold ${compact ? 'py-2.5 text-xs' : 'py-3 text-sm'} ${
+                referenciaError ? 'border-red-500 border' : 'border border-gray-200'
+              }`}
               value={referencia}
               onChange={(e) => onReferenciaChange(e.target.value)}
             />
           </div>
+          {referenciaError && (
+            <p className="text-red-500 text-xs mt-1 font-bold px-1">{referenciaError}</p>
+          )}
         </div>
       )}
     </div>
