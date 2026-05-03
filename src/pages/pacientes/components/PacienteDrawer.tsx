@@ -183,14 +183,26 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-secondary mb-1">F. Nacimiento</label>
-                <DatePicker
-                  value={watch('fecha_nacimiento') || ''}
-                  onChange={(v) => setValue('fecha_nacimiento', v)}
-                  maxDate={new Date().toISOString().split('T')[0]}
-                />
-                {errors.fecha_nacimiento && <p className="text-red-500 text-xs mt-1">{errors.fecha_nacimiento.message}</p>}
+                <label className="block text-sm font-medium text-secondary mb-1">Sexo</label>
+                <select 
+                  className={`w-full border rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary outline-none transition-colors ${errors.sexo ? 'border-red-500' : 'border-gray-200'}`}
+                  {...register('sexo')}
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">F. Nacimiento</label>
+              <DatePicker
+                value={watch('fecha_nacimiento') || ''}
+                onChange={(v) => setValue('fecha_nacimiento', v)}
+                maxDate={new Date().toISOString().split('T')[0]}
+              />
+              {errors.fecha_nacimiento && <p className="text-red-500 text-xs mt-1">{errors.fecha_nacimiento.message}</p>}
             </div>
 
             <div className="bg-red-50/50 p-4 rounded-xl border border-red-100">
