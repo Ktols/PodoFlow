@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, CheckCircle2, User, Clock, CreditCard, Hash, Gift } from 'lucide-react';
+import { X, CheckCircle2, User, Clock, CreditCard, Hash, Gift, Package } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { StampCard } from '../../../components/StampCard';
@@ -12,6 +12,13 @@ interface ServicioActivo {
   id: string;
   nombre: string;
   precio_base: number;
+}
+
+interface ProductoRecetado {
+  id: string;
+  nombre: string;
+  precio: number;
+  stock: number;
 }
 
 interface CobroDrawerProps {
@@ -35,6 +42,8 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
   const [pacienteSellos, setPacienteSellos] = useState(0);
   const [pacienteSellosCanjeados, setPacienteSellosCanjeados] = useState(0);
   const [canjearVisitaGratis, setCanjearVisitaGratis] = useState(false);
+  const [productosRecetados, setProductosRecetados] = useState<ProductoRecetado[]>([]);
+  const [selectedProductos, setSelectedProductos] = useState<Set<string>>(new Set());
 
   // Contador de aperturas: se incrementa cada vez que isOpen pasa a true.
   // Esto fuerza al useEffect a re-ejecutarse incluso si cita es el mismo objeto.
@@ -62,6 +71,8 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     setCanjearVisitaGratis(false);
     setPacienteSellos(0);
     setPacienteSellosCanjeados(0);
+    setProductosRecetados([]);
+    setSelectedProductos(new Set());
 
     const initDrawer = async () => {
       // 0. Fetch sellos del paciente
@@ -89,13 +100,13 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       // 2. Fetch FRESCO de la atención vinculada a esta cita
       const { data: atencionData } = await supabase
         .from('atenciones')
-        .select('tratamientos_realizados')
+        .select('tratamientos_realizados, medicamentos_recetados')
         .eq('cita_id', cita.id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      // 3. Reset + inyección de datos frescos
+      // 3. Inyección de servicios heredados
       if (atencionData?.tratamientos_realizados && Array.isArray(atencionData.tratamientos_realizados)) {
         const nombresHeredados: string[] = atencionData.tratamientos_realizados;
         const idsPreseleccionados = new Set<string>();
@@ -108,11 +119,23 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
           setSelectedServicios(idsPreseleccionados);
           setHeredadoDeMedico(true);
 
-          // 4. Cálculo inmediato del monto heredado (no depender del useEffect secundario)
           const totalHeredado = svcs
             .filter(s => idsPreseleccionados.has(s.id))
             .reduce((sum, s) => sum + s.precio_base, 0);
           setMontoTotal(totalHeredado > 0 ? totalHeredado.toFixed(2) : '');
+        }
+      }
+
+      // 4. Resolver medicamentos recetados a productos con precio y stock
+      if (atencionData?.medicamentos_recetados && Array.isArray(atencionData.medicamentos_recetados) && atencionData.medicamentos_recetados.length > 0) {
+        const { data: prodsData } = await supabase
+          .from('productos')
+          .select('id, nombre, precio, stock')
+          .in('nombre', atencionData.medicamentos_recetados)
+          .eq('estado', true);
+
+        if (prodsData && prodsData.length > 0) {
+          setProductosRecetados(prodsData);
         }
       }
     };
@@ -120,27 +143,37 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     initDrawer();
   }, [openCounter]); // Solo depende del contador de aperturas
 
-  // Auto-calculate total from selected
+  // Auto-calculate total from selected services + products
   useEffect(() => {
     if (!montoManual) {
-      const total = servicios
+      const totalServicios = servicios
         .filter(s => selectedServicios.has(s.id))
         .reduce((sum, s) => sum + s.precio_base, 0);
+      const totalProductos = productosRecetados
+        .filter(p => selectedProductos.has(p.id))
+        .reduce((sum, p) => sum + p.precio, 0);
+      const total = totalServicios + totalProductos;
       setMontoTotal(total > 0 ? total.toFixed(2) : '');
     }
-  }, [selectedServicios, servicios, montoManual]);
+  }, [selectedServicios, servicios, selectedProductos, productosRecetados, montoManual]);
 
   const toggleServicio = (id: string) => {
     setSelectedServicios(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-    // Reset manual mode when toggling services
+    setMontoManual(false);
+  };
+
+  const toggleProducto = (id: string) => {
+    setSelectedProductos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
     setMontoManual(false);
   };
 
@@ -206,6 +239,16 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       const { error } = await supabase.from('pagos').insert([payload]);
 
       if (error) throw error;
+
+      // Descontar stock de productos recetados seleccionados
+      if (selectedProductos.size > 0) {
+        for (const prod of productosRecetados.filter(p => selectedProductos.has(p.id))) {
+          await supabase
+            .from('productos')
+            .update({ stock: Math.max(0, prod.stock - 1) })
+            .eq('id', prod.id);
+        }
+      }
 
       // Actualizar sellos del paciente
       if (canjearVisitaGratis) {
@@ -392,15 +435,79 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               )}
             </div>
 
+            {/* Productos Recetados (Opcional) */}
+            {productosRecetados.length > 0 && (
+              <div className="animate-in fade-in duration-300">
+                <label className="block text-sm font-bold text-[#004975] mb-2">
+                  <span className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-purple-500" />
+                    Productos Recetados
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">Opcional</span>
+                  </span>
+                </label>
+                <p className="text-[11px] font-bold text-gray-400 mb-3">
+                  El paciente puede elegir comprar estos productos en la clínica.
+                </p>
+                <div className="space-y-2">
+                  {productosRecetados.map(producto => {
+                    const isSelected = selectedProductos.has(producto.id);
+                    const sinStock = producto.stock <= 0;
+                    return (
+                      <button
+                        key={producto.id}
+                        type="button"
+                        disabled={sinStock}
+                        onClick={() => toggleProducto(producto.id)}
+                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${
+                          sinStock
+                            ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed'
+                            : isSelected
+                              ? 'bg-purple-50 border-purple-200 shadow-sm'
+                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                              sinStock
+                                ? 'border-gray-200 bg-gray-100'
+                                : isSelected
+                                  ? 'bg-purple-500 border-purple-500'
+                                  : 'border-gray-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <span className={`text-sm font-bold ${isSelected ? 'text-[#004975]' : 'text-gray-600'}`}>
+                              {producto.nombre}
+                            </span>
+                            {sinStock && (
+                              <span className="block text-[10px] font-bold text-red-500">Sin stock</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`text-sm font-black tabular-nums ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
+                          S/ {producto.precio.toFixed(2)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Monto Total */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-bold text-[#004975]">
                   Monto Total <span className="text-red-500">*</span>
                 </label>
-                {selectedServicios.size > 0 && (
+                {(selectedServicios.size > 0 || selectedProductos.size > 0) && (
                   <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    {montoManual ? '✏️ Editado manualmente' : `${selectedServicios.size} servicio(s) sumados`}
+                    {montoManual ? '✏️ Editado manualmente' : `${selectedServicios.size} servicio(s)${selectedProductos.size > 0 ? ` + ${selectedProductos.size} producto(s)` : ''}`}
                   </span>
                 )}
               </div>
@@ -485,10 +592,32 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
             const totalFinal = canjearVisitaGratis ? 0 : Math.max(0, montoNum - adelantoNum);
             return (
               <div className="mb-4 p-3 bg-[#00C288]/5 rounded-xl border border-[#00C288]/10 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-400">Monto servicios</span>
-                  <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {montoNum.toFixed(2)}</span>
-                </div>
+                {(() => {
+                  const totalServicios = servicios.filter(s => selectedServicios.has(s.id)).reduce((sum, s) => sum + s.precio_base, 0);
+                  const totalProds = productosRecetados.filter(p => selectedProductos.has(p.id)).reduce((sum, p) => sum + p.precio, 0);
+                  return (
+                    <>
+                      {totalServicios > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-400">Servicios ({selectedServicios.size})</span>
+                          <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {totalServicios.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {totalProds > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-purple-500">Productos recetados ({selectedProductos.size})</span>
+                          <span className="text-sm font-bold text-purple-600 tabular-nums">S/ {totalProds.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {montoManual && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-400">Monto total</span>
+                          <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {montoNum.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 {canjearVisitaGratis && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[#00C288]">🎁 Visita gratis (sellos canjeados)</span>
