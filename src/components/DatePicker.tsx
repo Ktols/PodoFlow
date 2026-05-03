@@ -157,10 +157,10 @@ export function DatePicker({ value, onChange, className = '' }: DatePickerProps)
                 d.setFullYear(Number(e.target.value));
                 setViewDate(d);
               }}
-              className="w-[70px] text-[11px] font-bold text-gray-600 bg-gray-50 border border-gray-200 px-1.5 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-[#00C288]"
+              className="w-[85px] text-[11px] font-bold text-gray-600 bg-gray-50 border border-gray-200 px-1.5 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-[#00C288] scrollbar-thin"
             >
-              {Array.from({ length: 11 }, (_, i) => {
-                const year = new Date().getFullYear() - 5 + i;
+              {Array.from({ length: new Date().getFullYear() - 1920 + 11 }, (_, i) => {
+                const year = new Date().getFullYear() + 10 - i;
                 return <option key={year} value={year}>{year}</option>;
               })}
             </select>
