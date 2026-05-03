@@ -5,6 +5,7 @@ import { Plus, Edit2, Search, Download } from 'lucide-react';
 import { EspecialistaDrawer } from './components/EspecialistaDrawer';
 import { ExportModal } from '../../components/ExportModal';
 import { useAuthStore } from '../../stores/authStore';
+import { useBranchStore } from '../../stores/branchStore';
 import type { CsvColumn } from '../../lib/exportCsv';
 import type { Especialista } from '../../types/entities';
 
@@ -20,6 +21,7 @@ export function EspecialistasPage() {
   const [exportFilterTrigger, setExportFilterTrigger] = useState(0);
 
   const { perfil } = useAuthStore();
+  const { sucursalActiva } = useBranchStore();
   const isDueno = perfil?.rol_nombre === 'dueno';
 
   const especialistaCsvColumns: CsvColumn<Especialista>[] = [
@@ -32,18 +34,29 @@ export function EspecialistasPage() {
   ];
 
   const fetchExportEspecialistas = async (): Promise<Especialista[]> => {
-    let query = supabase.from('podologos').select('*').order('nombres');
+    if (!sucursalActiva?.id) return [];
+    let query = supabase
+      .from('podologos')
+      .select('*, sucursal_podologos!inner(sucursal_id)')
+      .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
+      .order('nombres');
+      
     if (exportEstadoFilter === 'activo') query = query.eq('estado', true);
     if (exportEstadoFilter === 'inactivo') query = query.eq('estado', false);
     const { data, error } = await query;
     if (error || !data) return [];
-    return data;
+    return data as any;
   };
 
   const fetchEspecialistas = async () => {
+    if (!sucursalActiva?.id) return;
     try {
       setLoading(true);
-      let query = supabase.from('podologos').select('*').order('nombres', { ascending: true });
+      let query = supabase
+        .from('podologos')
+        .select('*, sucursal_podologos!inner(sucursal_id)')
+        .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
+        .order('nombres', { ascending: true });
       
       if (searchTerm) {
         query = query.or(`nombres.ilike.%${searchTerm}%,dni.ilike.%${searchTerm}%`);
@@ -51,7 +64,7 @@ export function EspecialistasPage() {
       
       const { data, error } = await query;
       if (error) throw error;
-      setEspecialistas(data || []);
+      setEspecialistas(data as any || []);
     } catch (err) {
       console.error('Error fetching especialistas:', err);
       toast.error('Error al cargar los especialistas');
@@ -62,7 +75,7 @@ export function EspecialistasPage() {
 
   useEffect(() => {
     fetchEspecialistas();
-  }, [searchTerm]);
+  }, [searchTerm, sucursalActiva?.id]);
 
   return (
     <div className="space-y-6 animate-in fade-in">

@@ -215,11 +215,17 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
       setValidationError(null);
 
       const fetchPodologos = async () => {
-        const { data } = await supabase.from('podologos').select('id, nombres, especialidad, color_etiqueta').eq('estado', true);
-        if (data) setPodologos(data);
+        if (!sucursalActiva?.id) return;
+        const { data } = await supabase
+          .from('podologos')
+          .select('id, nombres, especialidad, color_etiqueta, sucursal_podologos!inner(sucursal_id)')
+          .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
+          .eq('estado', true);
+        if (data) setPodologos(data as any);
       };
       const fetchServicios = async () => {
-        const { data } = await supabase.from('servicios').select('id, nombre').eq('estado', true).order('nombre');
+        if (!sucursalActiva?.id) return;
+        const { data } = await supabase.from('servicios').select('id, nombre').eq('estado', true).eq('sucursal_id', sucursalActiva.id).order('nombre');
         if (data) setServiciosList(data);
       };
 

@@ -89,11 +89,16 @@ export function AgendaPage() {
 
   useEffect(() => {
     const fetchPodologos = async () => {
-      const { data } = await supabase.from('podologos').select('id, nombres').order('nombres');
+      if (!sucursalActiva?.id) return;
+      const { data } = await supabase
+        .from('podologos')
+        .select('id, nombres, sucursal_podologos!inner(sucursal_id)')
+        .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
+        .order('nombres');
       if (data) setPodologos(data);
     };
     fetchPodologos();
-  }, []);
+  }, [sucursalActiva?.id]);
 
   const fetchCitas = async (showLoader = true) => {
     if (showLoader) setIsLoading(true);

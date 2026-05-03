@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Package, Hash, Boxes } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useBranchStore } from '../../../stores/branchStore';
 import type { Producto } from '../../../types/entities';
 import { CATEGORIAS_PRODUCTO } from '../../../constants';
 
@@ -24,6 +25,7 @@ interface ProductoForm {
 }
 
 export function ProductoDrawer({ isOpen, onClose, onSuccess, productoEnEdicion }: ProductoDrawerProps) {
+  const { sucursalActiva } = useBranchStore();
   const [form, setForm] = useState<ProductoForm>({
     codigo: '',
     nombre: '',
@@ -121,7 +123,7 @@ export function ProductoDrawer({ isOpen, onClose, onSuccess, productoEnEdicion }
       } else {
         const { error } = await supabase
           .from('productos')
-          .insert([payload]);
+          .insert([{ ...payload, sucursal_id: sucursalActiva?.id }]);
 
         if (error) throw error;
         toast.success('Producto creado correctamente');

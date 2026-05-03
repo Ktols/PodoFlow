@@ -93,6 +93,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
         .from('productos')
         .select('id, nombre, precio, stock')
         .eq('estado', true)
+        .eq('sucursal_id', sucursalActiva?.id)
         .gt('stock', 0)
         .or(`nombre.ilike.%${productoSearch}%,codigo.ilike.%${productoSearch}%`)
         .order('nombre')
