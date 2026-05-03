@@ -17,7 +17,7 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
   const [inputValue, setInputValue] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [popoverCoords, setPopoverCoords] = useState({ top: 0, left: 0, position: 'bottom' as 'top' | 'bottom' });
+  const [popoverCoords, setPopoverCoords] = useState<{ top: number, left: number, position: 'top' | 'bottom' } | null>(null);
 
   // Sincronizar valor interno con prop 'value'
   useEffect(() => {
@@ -38,9 +38,8 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
   const parsedMaxDate = maxDate ? parse(maxDate, 'yyyy-MM-dd', new Date()) : null;
   const parsedMinDate = minDate ? parse(minDate, 'yyyy-MM-dd', new Date()) : null;
 
-  // Calcular posición del popover
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
+  const calculateCoords = () => {
+    if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
       const hasSpaceBelow = spaceBelow > 350;
@@ -51,6 +50,24 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
         position: hasSpaceBelow ? 'bottom' : 'top'
       });
     }
+  };
+
+  const openPicker = () => {
+    calculateCoords();
+    setIsOpen(true);
+  };
+
+  // Recalcular si cambia el tamaño de ventana
+  useEffect(() => {
+    if (isOpen) {
+      window.addEventListener('resize', calculateCoords);
+      window.addEventListener('scroll', calculateCoords, true);
+      calculateCoords(); // Asegurar cálculo inmediato
+    }
+    return () => {
+      window.removeEventListener('resize', calculateCoords);
+      window.removeEventListener('scroll', calculateCoords, true);
+    };
   }, [isOpen]);
 
   const isInvalid = inputValue.length === 10 && (() => {
@@ -123,8 +140,8 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
           type="text"
           value={inputValue}
           onChange={handleInputChange}
-          onFocus={() => setIsOpen(true)}
-          onClick={() => setIsOpen(true)}
+          onFocus={openPicker}
+          onClick={openPicker}
           placeholder={placeholder}
           className={`w-full pl-10 pr-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-bold outline-none transition-all placeholder:text-gray-300 ${
             isInvalid 
@@ -146,12 +163,12 @@ export function DatePicker({ value, onChange, className = '', placeholder = 'DD/
         )}
       </div>
 
-      {isOpen && (
+      {isOpen && popoverCoords && (
         <div 
           ref={popoverRef}
           style={{ 
             position: 'fixed', 
-            top: popoverCoords.top - window.scrollY, 
+            top: popoverCoords.top, 
             left: popoverCoords.left,
             zIndex: 9999 
           }}
