@@ -560,24 +560,28 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               {errors.podologo_id && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.podologo_id.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="space-y-4 pt-2">
               {/* Fecha */}
-              <div>
-                <label className="block text-sm font-bold text-[#004975] mb-2">Fecha <span className="text-red-500">*</span></label>
+              <div className="flex-1">
+                <label className="block text-sm font-bold text-[#004975] mb-2 flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-[#00C288]" />
+                  Fecha de Cita <span className="text-red-500">*</span>
+                </label>
                 <DatePicker
                   value={watchedFechaCita || ''}
                   onChange={(v) => setValue('fecha_cita', v, { shouldValidate: true })}
-                  className={errors.fecha_cita ? '[&>button]:border-red-500' : ''}
+                  className={errors.fecha_cita ? '[&>div>input]:border-red-500' : ''}
                 />
                 {/* Hint: day name */}
                 {watchedFechaCita && (() => {
                   const [y, m, d] = watchedFechaCita.split('-').map(Number);
                   const dateObj = new Date(y, m - 1, d);
-                  const todayStr = format(new Date(), 'yyyy-MM-dd');
+                  const todayStr = new Date().toLocaleDateString('en-CA');
                   const isToday = watchedFechaCita === todayStr;
                   return (
-                    <p className={`text-[11px] font-bold mt-1.5 px-1 ${isToday ? 'text-[#00C288]' : 'text-gray-400'}`}>
-                      {isToday ? '● Hoy, ' : ''}{format(dateObj, "EEEE d 'de' MMMM", { locale: es })}
+                    <p className={`text-[11px] font-bold mt-2 px-1 flex items-center gap-1.5 ${isToday ? 'text-[#00C288]' : 'text-gray-400'}`}>
+                      {isToday && <span className="w-1.5 h-1.5 bg-[#00C288] rounded-full animate-pulse" />}
+                      {format(dateObj, "EEEE d 'de' MMMM", { locale: es })}
                     </p>
                   );
                 })()}
@@ -585,15 +589,17 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               </div>
 
               {/* Hora */}
-              <div>
-                <label className="block text-sm font-bold text-[#004975] mb-2">Hora <span className="text-red-500">*</span></label>
+              <div className="flex-1">
+                <label className="block text-sm font-bold text-[#004975] mb-2 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#00C288]" />
+                  Hora Programada <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <Clock className="w-4 h-4 text-[#00C288] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <select
-                    className={`w-full appearance-none border rounded-xl py-3 pl-10 pr-8 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#00C288] outline-none font-medium transition-colors shadow-sm cursor-pointer ${errors.hora_cita ? 'border-red-500' : 'border-gray-200'}`}
+                    className={`w-full appearance-none border rounded-xl py-3 pl-4 pr-10 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#00C288] outline-none font-bold text-[#004975] transition-all shadow-sm cursor-pointer ${errors.hora_cita ? 'border-red-500' : 'border-gray-200'}`}
                     {...register('hora_cita')}
                   >
-                    <option value="">Seleccione...</option>
+                    <option value="">Seleccione una hora...</option>
                     <optgroup label="☀️ Mañana">
                       {TIME_OPTIONS.filter(t => parseInt(t.value) < 12).map(time => (
                         <option key={time.value} value={time.value}>{time.label}</option>
@@ -610,8 +616,8 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                       ))}
                     </optgroup>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                    <span className="text-gray-400 text-xs">▼</span>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5">
+                    <Clock className="w-4 h-4 text-gray-300" />
                   </div>
                 </div>
                 {errors.hora_cita && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.hora_cita.message}</p>}
