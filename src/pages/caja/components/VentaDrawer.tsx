@@ -56,6 +56,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
       setMetodoPago('Efectivo');
       setNotas('');
       setCodigoReferencia('');
+      setStockMap({});
       setPacienteId(null);
       setPacienteNombre('');
       setPacienteSearch('');
@@ -96,7 +97,6 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
         .select('id, nombre, precio, stock')
         .eq('estado', true)
         .eq('sucursal_id', sucursalActiva?.id)
-        .gt('stock', 0)
         .or(`nombre.ilike.%${productoSearch}%,codigo.ilike.%${productoSearch}%`)
         .order('nombre')
         .limit(10);
@@ -104,6 +104,9 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
     }, 250);
     return () => clearTimeout(timer);
   }, [productoSearch]);
+
+  // Map producto_id → stock disponible para validación de cantidad
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
 
   const addItem = (producto: ProductoMin) => {
     const existing = items.find(i => i.producto_id === producto.id);
@@ -125,15 +128,20 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
         cantidad: 1,
         subtotal: producto.precio,
       }]);
+      setStockMap(prev => ({ ...prev, [producto.id]: producto.stock }));
     }
     setProductoSearch('');
     setShowProductoResults(false);
   };
 
   const updateQty = (productoId: string, delta: number) => {
+    const maxStock = stockMap[productoId] ?? Infinity;
     setItems(prev => prev.map(i => {
       if (i.producto_id !== productoId) return i;
-      const newQty = Math.max(1, i.cantidad + delta);
+      const newQty = Math.max(1, Math.min(maxStock, i.cantidad + delta));
+      if (i.cantidad + delta > maxStock) {
+        toast.error(`Stock máximo: ${maxStock} unidades`);
+      }
       return { ...i, cantidad: newQty, subtotal: newQty * i.precio_unitario };
     }));
   };
@@ -269,16 +277,29 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
                 {productoResults.length === 0 ? (
                   <p className="p-3 text-sm text-gray-400 text-center">Sin resultados</p>
-                ) : productoResults.map(p => (
-                  <button key={p.id} type="button" onClick={() => addItem(p)}
-                    className="w-full text-left px-4 py-3 hover:bg-[#00C288]/5 border-b border-gray-50 last:border-0 transition-colors flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-[#004975] text-sm">{p.nombre}</p>
-                      <p className="text-[11px] text-gray-400 font-bold">Stock: {p.stock}</p>
-                    </div>
-                    <span className="font-black text-[#004975] text-sm tabular-nums">{formatCurrency(p.precio)}</span>
-                  </button>
-                ))}
+                ) : productoResults.map(p => {
+                  const agotado = p.stock <= 0;
+                  return (
+                    <button key={p.id} type="button"
+                      disabled={agotado}
+                      onClick={() => !agotado && addItem(p)}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-0 transition-colors flex items-center justify-between ${
+                        agotado ? 'cursor-not-allowed bg-gray-50' : 'hover:bg-[#00C288]/5'
+                      }`}>
+                      <div>
+                        <p className={`font-bold text-sm ${agotado ? 'text-gray-500' : 'text-[#004975]'}`}>{p.nombre}</p>
+                        <p className="text-[11px] font-bold">
+                          {agotado ? (
+                            <span className="text-red-600 bg-red-100 px-1.5 py-0.5 rounded text-[10px] font-black uppercase">Agotado</span>
+                          ) : (
+                            <span className="text-gray-400">Stock: {p.stock}</span>
+                          )}
+                        </p>
+                      </div>
+                      <span className={`font-black text-sm tabular-nums ${agotado ? 'text-gray-400 line-through' : 'text-[#004975]'}`}>{formatCurrency(p.precio)}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -292,7 +313,10 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
                 </span>
               </div>
               <div className="divide-y divide-gray-100">
-                {items.map(item => (
+                {items.map(item => {
+                  const maxStock = stockMap[item.producto_id] ?? Infinity;
+                  const atMax = item.cantidad >= maxStock;
+                  return (
                   <div key={item.producto_id} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-[#004975] text-sm truncate">{item.nombre}</p>
@@ -305,7 +329,12 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
                       </button>
                       <span className="w-8 text-center font-black text-[#004975] text-sm tabular-nums">{item.cantidad}</span>
                       <button type="button" onClick={() => updateQty(item.producto_id, 1)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 transition-colors">
+                        disabled={atMax}
+                        className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-colors ${
+                          atMax
+                            ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                            : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-500'
+                        }`}>
                         <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -315,7 +344,8 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
