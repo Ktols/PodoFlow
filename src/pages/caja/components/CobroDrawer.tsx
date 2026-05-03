@@ -211,7 +211,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       const montoServicios = parseFloat(montoTotal);
       // Si canjea visita gratis: total = 0; si no: monto - adelanto
       const montoFinal = canjearVisitaGratis ? 0 : Math.max(0, montoServicios - adelantoNum);
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         cita_id: cita.id,
         paciente_id: cita.paciente_id,
         monto_total: montoFinal,

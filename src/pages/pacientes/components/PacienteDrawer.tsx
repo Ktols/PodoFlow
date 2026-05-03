@@ -12,7 +12,7 @@ interface PacienteDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  onSuccessWithData?: (data: any) => void;
+  onSuccessWithData?: (data: Paciente) => void;
   patient?: Paciente | null;
   defaultDocumento?: string;
 }
@@ -29,7 +29,7 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
     if (isOpen) {
       if (patient) {
         reset({
-          tipo_documento: patient.tipo_documento as any,
+          tipo_documento: patient.tipo_documento as PacienteFormValues['tipo_documento'],
           numero_documento: patient.numero_documento,
           nombres: patient.nombres,
           apellidos: patient.apellidos,
@@ -87,8 +87,8 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
       onSuccess?.();
       if (onSuccessWithData && insertedPatient) onSuccessWithData(insertedPatient);
       onClose();
-    } catch (err: any) {
-      if (err.code === '23505') {
+    } catch (err) {
+      if (err instanceof Object && 'code' in err && err.code === '23505') {
         toast.error('Ya existe un paciente con este documento.');
       } else {
         toast.error('Ocurrió un error inesperado');

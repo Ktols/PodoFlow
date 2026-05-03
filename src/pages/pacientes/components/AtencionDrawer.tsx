@@ -27,10 +27,17 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
-  const [podologosList, setPodologosList] = useState<any[]>([]);
+  const [podologosList, setPodologosList] = useState<{id: string, nombres: string, color_etiqueta: string}[]>([]);
   const [serviciosList, setServiciosList] = useState<{id: string, nombre: string, precio_base: number}[]>([]);
   const [productosList, setProductosList] = useState<{id: string, nombre: string}[]>([]);
-  const [antecedentes, setAntecedentes] = useState<any>(null);
+  const [antecedentes, setAntecedentes] = useState<{
+    diabetes?: boolean;
+    hipertension?: boolean;
+    enfermedad_vascular?: boolean;
+    tratamiento_oncologico?: boolean;
+    alergias_detalle?: string | null;
+    alergias_alertas?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const fetchPodologos = async () => {
@@ -144,7 +151,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
 
       const allPhotos = [...existingPhotos, ...uploadedUrls];
 
-      const dbData: any = {
+      const dbData: Record<string, unknown> = {
         paciente_id: pacienteId,
         motivo_consulta: data.motivo_consulta,
         diagnostico: data.diagnostico || '',
@@ -181,9 +188,8 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
 
       onSuccess?.();
       onClose();
-    } catch (err: any) {
+    } catch {
       toast.error('Ocurrió un error al guardar');
-      console.error(err);
     }
   };
 

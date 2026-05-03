@@ -66,8 +66,9 @@ export function PacientesPage() {
 
     if (data) {
       const counts: Record<string, number> = {};
-      const cleaned = data.map((p: any) => {
+      const cleaned = data.map((p: Paciente & { atenciones: { count: number }[] }) => {
         counts[p.id] = p.atenciones?.[0]?.count || 0;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { atenciones: _, ...rest } = p;
         return rest;
       });

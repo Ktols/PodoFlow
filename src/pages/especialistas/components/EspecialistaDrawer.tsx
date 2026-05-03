@@ -97,8 +97,8 @@ export function EspecialistaDrawer({ isOpen, onClose, onSuccess, especialista }:
 
       onSuccess?.();
       onClose();
-    } catch (err: any) {
-      if (err.code === '23505') {
+    } catch (err) {
+      if (err instanceof Object && 'code' in err && err.code === '23505') {
         toast.error('Ocurrió un error. El DNI o Correo ya podrían estar en uso.');
       } else {
         toast.error('Ocurrió un error al guardar');

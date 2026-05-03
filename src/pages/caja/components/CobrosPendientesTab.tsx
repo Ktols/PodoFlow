@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CobroDrawer } from './CobroDrawer';
-import { TicketPrint } from './TicketPrint';
+import { TicketPrint, type TicketData } from './TicketPrint';
 import { ExportModal } from '../../../components/ExportModal';
 import { useAuthStore } from '../../../stores/authStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
@@ -21,7 +21,7 @@ export function CobrosPendientesTab() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [citaSeleccionada, setCitaSeleccionada] = useState<CitaCaja | null>(null);
   const [ticketOpen, setTicketOpen] = useState(false);
-  const [ticketData, setTicketData] = useState<any>(null);
+  const [ticketData, setTicketData] = useState<TicketData | null>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportDesde, setExportDesde] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [exportHasta, setExportHasta] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -105,22 +105,24 @@ export function CobrosPendientesTab() {
 
     if (!citasData) return [];
 
-    const citaIds = citasData.map((c: any) => c.id);
+    const citaIds = citasData.map((c: { id: string }) => c.id);
     const { data: pagosData } = await supabase
       .from('pagos')
       .select('cita_id, monto_total, metodo_pago, estado, numero_ticket')
       .in('cita_id', citaIds);
 
-    const pagosMap = new Map((pagosData || []).map((p: any) => [p.cita_id, p]));
+    const pagosMap = new Map((pagosData || []).map((p: { cita_id: string; monto_total: number; metodo_pago: string; estado: string; numero_ticket?: number }) => [p.cita_id, p]));
 
-    const rows: CobroExportRow[] = citasData.map((c: any) => {
-      const pago = pagosMap.get(c.id) as any;
+    const rows: CobroExportRow[] = citasData.map((c) => {
+      const pago = pagosMap.get(c.id);
+      const pac = c.pacientes as unknown as { nombres: string; apellidos: string; numero_documento: string | null };
+      const pod = c.podologos as unknown as { nombres: string } | null;
       return {
         fecha: c.fecha_cita,
         hora: formatearHora(c.hora_cita),
-        paciente: `${c.pacientes.nombres} ${c.pacientes.apellidos}`,
-        documento: c.pacientes.numero_documento || '',
-        especialista: c.podologos?.nombres || '',
+        paciente: `${pac.nombres} ${pac.apellidos}`,
+        documento: pac.numero_documento || '',
+        especialista: pod?.nombres || '',
         estado_cita: c.estado,
         monto: pago ? `S/ ${Number(pago.monto_total).toFixed(2)}` : '',
         metodo_pago: pago?.metodo_pago || '',

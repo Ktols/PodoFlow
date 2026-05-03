@@ -5,12 +5,13 @@ import { X, Building2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { sucursalSchema, type SucursalFormValues } from '../schemas/sucursalSchema';
 import toast from 'react-hot-toast';
+import type { Sucursal } from '../../../types/entities';
 
 interface SucursalDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  sucursal: any | null;
+  sucursal: Sucursal | null;
 }
 
 export function SucursalDrawer({ isOpen, onClose, onSuccess, sucursal }: SucursalDrawerProps) {
@@ -71,8 +72,8 @@ export function SucursalDrawer({ isOpen, onClose, onSuccess, sucursal }: Sucursa
       }
       onSuccess();
       onClose();
-    } catch (err: any) {
-      toast.error(err?.message || 'Error al guardar la sucursal');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar la sucursal');
     }
   };
 

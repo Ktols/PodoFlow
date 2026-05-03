@@ -8,7 +8,7 @@ import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { CitaList } from '../../../types/entities';
+import type { CitaList, Paciente } from '../../../types/entities';
 import { useBranchStore } from '../../../stores/branchStore';
 import type { AtencionRow } from '../../../types/agenda';
 import { TIME_OPTIONS } from '../../../constants';
@@ -159,7 +159,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
     }
   }, [watchedFechaCita, isOpen, citaEnEdicion, setValue]);
 
-  const handleNewPatientCreated = (newPatientData: any) => {
+  const handleNewPatientCreated = (newPatientData: Paciente) => {
     // Add to pacientes list so it resolves selectedPaciente correctly
     setPacientes([{
       id: newPatientData.id,
@@ -225,7 +225,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           .select('id, nombres, especialidad, color_etiqueta, sucursal_podologos!inner(sucursal_id)')
           .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
           .eq('estado', true);
-        if (data) setPodologos(data as any);
+        if (data) setPodologos(data as PodologoMin[]);
       };
       const fetchServicios = async () => {
         if (!sucursalActiva?.id) return;

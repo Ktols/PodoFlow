@@ -45,7 +45,7 @@ export function EspecialistasPage() {
     if (exportEstadoFilter === 'inactivo') query = query.eq('estado', false);
     const { data, error } = await query;
     if (error || !data) return [];
-    return data as any;
+    return data as Especialista[];
   };
 
   const fetchEspecialistas = async () => {
@@ -64,7 +64,7 @@ export function EspecialistasPage() {
       
       const { data, error } = await query;
       if (error) throw error;
-      setEspecialistas(data as any || []);
+      setEspecialistas(data as Especialista[] || []);
     } catch (err) {
       console.error('Error fetching especialistas:', err);
       toast.error('Error al cargar los especialistas');

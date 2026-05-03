@@ -131,8 +131,8 @@ export function ProductoDrawer({ isOpen, onClose, onSuccess, productoEnEdicion }
 
       onSuccess?.();
       onClose();
-    } catch (err: any) {
-      if (err?.code === '23505') {
+    } catch (err) {
+      if (err instanceof Object && 'code' in err && err.code === '23505') {
         toast.error('Ya existe un producto con ese código.');
       } else {
         toast.error('Error al guardar el producto');
