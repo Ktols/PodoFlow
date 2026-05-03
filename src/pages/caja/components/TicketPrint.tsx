@@ -177,12 +177,12 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
         }
       `}</style>
 
-      <div className="fixed inset-0 z-[99999] print:static print:block">
+      <div className="fixed inset-0 z-[99999] !m-0 print:static print:block">
         {/* Backdrop */}
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm print:hidden" onClick={onClose} />
 
         {/* Panel */}
-        <div className="absolute right-0 top-0 h-full w-full md:w-[680px] bg-gray-100 shadow-2xl z-[100000] flex flex-col animate-in slide-in-from-right print:static print:w-full print:h-auto print:shadow-none print:bg-white print:block">
+        <div className="absolute right-0 inset-y-0 w-full md:w-[680px] bg-gray-100 shadow-2xl z-[100000] flex flex-col animate-in slide-in-from-right print:static print:w-full print:h-auto print:shadow-none print:bg-white print:block">
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 print:hidden">
             <h2 className="text-lg font-black text-[#004975]">Comprobante de Pago</h2>

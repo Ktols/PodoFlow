@@ -100,7 +100,7 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[20050]">
+    <div className="fixed inset-0 z-[20050] !m-0">
       {/* Backdrop overlay */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
@@ -108,7 +108,7 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
       />
       
       {/* Drawer */}
-      <div className="absolute right-0 top-0 h-full w-full md:w-[500px] lg:max-w-lg bg-background-container shadow-2xl z-[20051] transform transition-transform duration-300 flex flex-col">
+      <div className="absolute right-0 inset-y-0 w-full md:w-[500px] lg:max-w-lg bg-background-container shadow-2xl z-[20051] transform transition-transform duration-300 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-secondary">
@@ -265,7 +265,7 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
             type="submit" 
             form="paciente-form"
             disabled={isSubmitting}
-            className="px-6 py-2.5 bg-primary disabled:opacity-70 disabled:cursor-not-allowed text-white font-medium rounded-lg hover:bg-[#00ab78] transition-colors shadow-md flex items-center justify-center min-w-[160px]"
+            className="px-5 py-2.5 bg-primary disabled:opacity-70 disabled:cursor-not-allowed text-white font-medium rounded-lg hover:bg-[#00ab78] transition-colors shadow-md flex items-center justify-center text-sm"
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

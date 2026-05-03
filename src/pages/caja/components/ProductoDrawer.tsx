@@ -146,13 +146,13 @@ export function ProductoDrawer({ isOpen, onClose, onSuccess, productoEnEdicion }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-[9999] !m-0">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity animate-in fade-in"
         onClick={onClose}
       />
 
-      <div className="absolute right-0 top-0 h-full w-full md:w-[500px] lg:max-w-lg bg-white shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
+      <div className="absolute right-0 inset-y-0 w-full md:w-[500px] lg:max-w-lg bg-white shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-black text-[#004975]">
@@ -348,11 +348,11 @@ export function ProductoDrawer({ isOpen, onClose, onSuccess, productoEnEdicion }
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-gray-100 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.02)] flex justify-end gap-3 rounded-bl-lg">
+        <div className="p-4 md:p-6 border-t border-gray-100 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.02)] flex justify-end gap-3 rounded-bl-lg">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-3 text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-bold shadow-sm"
+            className="px-4 py-2.5 text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-bold shadow-sm text-sm"
           >
             Cancelar
           </button>
@@ -360,7 +360,7 @@ export function ProductoDrawer({ isOpen, onClose, onSuccess, productoEnEdicion }
             type="submit"
             form="producto-form"
             disabled={isSubmitting}
-            className="px-8 py-3 bg-[#00C288] disabled:opacity-70 disabled:cursor-not-allowed text-white font-black rounded-xl hover:bg-[#00ab78] transition-all shadow-md flex items-center justify-center min-w-[170px]"
+            className="px-5 py-2.5 bg-[#00C288] disabled:opacity-70 disabled:cursor-not-allowed text-white font-black rounded-xl hover:bg-[#00ab78] transition-all shadow-md flex items-center justify-center text-sm"
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
