@@ -6,6 +6,7 @@ import { atencionSchema, type AtencionFormValues } from '../schemas/atencionSche
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import type { Atencion } from '../../../types/entities';
+import { useBranchStore } from '../../../stores/branchStore';
 import { DatePicker } from '../../../components/DatePicker';
 
 interface AtencionDrawerProps {
@@ -18,6 +19,7 @@ interface AtencionDrawerProps {
 }
 
 export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencion, originCitaId }: AtencionDrawerProps) {
+  const { sucursalActiva } = useBranchStore();
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting }, reset } = useForm<AtencionFormValues>({
     resolver: zodResolver(atencionSchema),
   });
@@ -36,11 +38,13 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
       if (data) setPodologosList(data);
     };
     const fetchServicios = async () => {
-      const { data } = await supabase.from('servicios').select('id, nombre, precio_base').eq('estado', true).order('nombre');
+      if (!sucursalActiva?.id) return;
+      const { data } = await supabase.from('servicios').select('id, nombre, precio_base').eq('estado', true).eq('sucursal_id', sucursalActiva.id).order('nombre');
       if (data) setServiciosList(data);
     };
     const fetchProductos = async () => {
-      const { data } = await supabase.from('productos').select('id, nombre').eq('estado', true).order('nombre');
+      if (!sucursalActiva?.id) return;
+      const { data } = await supabase.from('productos').select('id, nombre').eq('estado', true).eq('sucursal_id', sucursalActiva.id).order('nombre');
       if (data) setProductosList(data);
     };
     const fetchAntecedentes = async () => {

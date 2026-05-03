@@ -233,6 +233,7 @@ export function CobrosPendientesTab() {
       const { data: serviciosData } = await supabase
         .from('servicios')
         .select('nombre, precio_base')
+        .eq('sucursal_id', sucursalActiva?.id)
         .in('nombre', atencionData.tratamientos_realizados);
 
       if (serviciosData) {

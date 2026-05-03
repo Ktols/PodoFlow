@@ -80,6 +80,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
         .from('servicios')
         .select('id, nombre, precio_base')
         .eq('estado', true)
+        .eq('sucursal_id', sucursalActiva?.id)
         .order('nombre');
 
       const svcs = serviciosData || [];

@@ -143,14 +143,13 @@ export function Dashboard() {
           .in('estado', ['Programada', 'Confirmada', 'En Sala de Espera'])
           .order('hora_cita', { ascending: true })
           .limit(5),
-        // Productos con stock bajo o agotado
+        // Productos con stock bajo o agotado (filtrado client-side porque PostgREST no soporta comparar columna vs columna)
         supabase
           .from('productos')
           .select('id, nombre, stock, stock_minimo')
           .eq('estado', true)
-          .or('stock.eq.0,stock.lte.stock_minimo')
+          .eq('sucursal_id', sucursalActiva.id)
           .order('stock', { ascending: true })
-          .limit(5)
       ]);
 
       const revenueToday = todayPayments?.reduce((sum, p) => sum + p.monto_total, 0) || 0;
@@ -198,7 +197,11 @@ export function Dashboard() {
 
       setLast7DaysRevenue(Array.from(chartMap.values()));
       setNextAppointments((nextCitas as unknown as ProximaCitaRow[]) || []);
-      setLowStockProducts((alertProducts as LowStockProduct[]) || []);
+      // Filtrar productos con stock bajo o agotado (comparación columna vs columna)
+      const filteredLowStock = (alertProducts as LowStockProduct[] || [])
+        .filter(p => p.stock === 0 || (p.stock_minimo > 0 && p.stock <= p.stock_minimo))
+        .slice(0, 5);
+      setLowStockProducts(filteredLowStock);
 
       setStats({
         todayAppointments: appointmentsCount || 0,
@@ -475,7 +478,7 @@ export function Dashboard() {
       {/* Bottom Section: Ticket Promedio + Inventario */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Ticket Promedio */}
-        <div className="bg-gradient-to-br from-[#004975] to-[#003a5e] p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[#004975] to-[#003a5e] p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden self-start">
           <div className="absolute -bottom-6 -right-6 opacity-10">
             <TrendingUp className="w-48 h-48" />
           </div>

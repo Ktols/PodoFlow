@@ -6,6 +6,7 @@ import { ProductoDrawer } from './ProductoDrawer';
 import { CATEGORIAS_PRODUCTO } from '../../../constants';
 import { ExportModal } from '../../../components/ExportModal';
 import { useAuthStore } from '../../../stores/authStore';
+import { useBranchStore } from '../../../stores/branchStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
 import type { Producto } from '../../../types/entities';
 
@@ -24,13 +25,16 @@ export function ProductosTab() {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   const { perfil } = useAuthStore();
+  const { sucursalActiva } = useBranchStore();
   const isDueno = perfil?.rol_nombre === 'dueno';
 
   const fetchProductos = async () => {
+    if (!sucursalActiva?.id) return;
     setIsLoading(true);
     const { data, error } = await supabase
       .from('productos')
       .select('*')
+      .eq('sucursal_id', sucursalActiva.id)
       .order('nombre', { ascending: true });
 
     if (error) {
@@ -44,7 +48,7 @@ export function ProductosTab() {
 
   useEffect(() => {
     fetchProductos();
-  }, []);
+  }, [sucursalActiva?.id]);
 
   const getStockStatus = (p: Producto): StockFilter => {
     if (p.stock === 0) return 'sin_stock';

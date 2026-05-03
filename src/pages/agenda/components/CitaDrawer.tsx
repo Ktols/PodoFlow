@@ -224,7 +224,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         if (data) setPodologos(data as any);
       };
       const fetchServicios = async () => {
-        const { data } = await supabase.from('servicios').select('id, nombre').eq('estado', true).order('nombre');
+        const { data } = await supabase.from('servicios').select('id, nombre').eq('estado', true).eq('sucursal_id', sucursalActiva.id).order('nombre');
         if (data) setServiciosList(data);
       };
 
