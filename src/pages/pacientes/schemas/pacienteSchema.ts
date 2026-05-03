@@ -8,7 +8,14 @@ export const pacienteSchema = z.object({
   nombres: z.string().min(1, "Requerido"),
   apellidos: z.string().min(1, "Requerido"),
   telefono: z.string().optional(),
-  fecha_nacimiento: z.string().optional(),
+  fecha_nacimiento: z.string().optional().refine((val) => {
+    if (!val) return true;
+    const date = new Date(val);
+    const today = new Date();
+    // Reset hours to compare only dates
+    today.setHours(23, 59, 59, 999);
+    return date <= today;
+  }, { message: "La fecha de nacimiento no puede ser futura" }),
   alergias_alertas: z.string().optional(),
   diabetes: z.boolean().optional(),
   hipertension: z.boolean().optional(),

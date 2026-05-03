@@ -189,6 +189,7 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
                   onChange={(v) => setValue('fecha_nacimiento', v)}
                   maxDate={new Date().toISOString().split('T')[0]}
                 />
+                {errors.fecha_nacimiento && <p className="text-red-500 text-xs mt-1">{errors.fecha_nacimiento.message}</p>}
               </div>
             </div>
 
