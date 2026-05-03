@@ -227,7 +227,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
             {days.map(day => {
               const isCurrMonth = isSameMonth(day, viewDate);
               const isSelected = !!selectedDate && isSameDay(day, selectedDate);
-              const isDisabled = (parsedMaxDate && day > parsedMaxDate) || (parsedMinDate && day < parsedMinDate);
+              const isDisabled = !!((parsedMaxDate && day > parsedMaxDate) || (parsedMinDate && day < parsedMinDate));
               
               return (
                 <button
