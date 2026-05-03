@@ -4,7 +4,10 @@ import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import type { VentaItem } from '../../../types/entities';
 import { METODOS_PAGO_NOMBRES } from '../../../constants';
+<<<<<<< HEAD
 import { useBranchStore } from '../../../stores/branchStore';
+=======
+>>>>>>> origin/main
 
 interface PacienteMin {
   id: string;

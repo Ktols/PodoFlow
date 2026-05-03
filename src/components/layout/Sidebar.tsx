@@ -86,7 +86,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <nav className="flex-1 px-4 space-y-1">
         {renderLinks(mainRoutes)}
 
+<<<<<<< HEAD
         {/* Caja with dropdown — solo Cobros + Ventas */}
+=======
+        {/* Caja with dropdown */}
+>>>>>>> origin/main
         {!isPodologo && (
           <div>
             <button

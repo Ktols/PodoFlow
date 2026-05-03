@@ -6,7 +6,10 @@ import { ProductoDrawer } from './ProductoDrawer';
 import { CATEGORIAS_PRODUCTO } from '../../../constants';
 import { ExportModal } from '../../../components/ExportModal';
 import { useAuthStore } from '../../../stores/authStore';
+<<<<<<< HEAD
 import { useBranchStore } from '../../../stores/branchStore';
+=======
+>>>>>>> origin/main
 import type { CsvColumn } from '../../../lib/exportCsv';
 import type { Producto } from '../../../types/entities';
 
@@ -25,7 +28,10 @@ export function ProductosTab() {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   const { perfil } = useAuthStore();
+<<<<<<< HEAD
   const { sucursalActiva } = useBranchStore();
+=======
+>>>>>>> origin/main
   const isDueno = perfil?.rol_nombre === 'dueno';
 
   const fetchProductos = async () => {

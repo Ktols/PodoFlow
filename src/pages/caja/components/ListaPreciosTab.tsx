@@ -3,7 +3,10 @@ import { Plus, Pencil, Package, Search } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ServicioDrawer } from './ServicioDrawer';
+<<<<<<< HEAD
 import { useBranchStore } from '../../../stores/branchStore';
+=======
+>>>>>>> origin/main
 import type { Servicio } from '../../../types/entities';
 
 export function ListaPreciosTab() {

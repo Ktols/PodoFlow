@@ -562,6 +562,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
 
             <div className="space-y-4 pt-2">
               {/* Fecha */}
+<<<<<<< HEAD
               <div className="flex-1">
                 <label className="block text-sm font-bold text-[#004975] mb-2 flex items-center gap-2">
                   <Plus className="w-4 h-4 text-[#00C288]" />
@@ -571,6 +572,14 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                   value={watchedFechaCita || ''}
                   onChange={(v) => setValue('fecha_cita', v, { shouldValidate: true })}
                   className={errors.fecha_cita ? '[&>div>input]:border-red-500' : ''}
+=======
+              <div>
+                <label className="block text-sm font-bold text-[#004975] mb-2">Fecha <span className="text-red-500">*</span></label>
+                <DatePicker
+                  value={watchedFechaCita || ''}
+                  onChange={(v) => setValue('fecha_cita', v, { shouldValidate: true })}
+                  className={errors.fecha_cita ? '[&>button]:border-red-500' : ''}
+>>>>>>> origin/main
                 />
                 {/* Hint: day name */}
                 {watchedFechaCita && (() => {
