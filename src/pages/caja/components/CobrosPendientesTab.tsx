@@ -161,11 +161,12 @@ export function CobrosPendientesTab() {
           color_etiqueta
         )
       `)
-      .gte('fecha_cita', fechaDesde)
-      .lte('fecha_cita', fechaHasta)
       .not('estado', 'in', '("Cancelada","No Asistió")')
       .order('fecha_cita', { ascending: true })
       .order('hora_cita', { ascending: true });
+
+    if (fechaDesde) citasQuery = citasQuery.gte('fecha_cita', fechaDesde);
+    if (fechaHasta) citasQuery = citasQuery.lte('fecha_cita', fechaHasta);
 
     if (sucursalActiva?.id) {
       citasQuery = citasQuery.eq('sucursal_id', sucursalActiva.id);
@@ -322,12 +323,12 @@ export function CobrosPendientesTab() {
             <div className="flex items-center gap-1.5">
               <DatePicker value={fechaDesde} onChange={(v) => {
                 setFechaDesde(v);
-                if (v > fechaHasta) setFechaHasta(v);
+                if (v && fechaHasta && v > fechaHasta) setFechaHasta(v);
               }} />
               <span className="text-xs font-bold text-gray-400">a</span>
               <DatePicker value={fechaHasta} onChange={(v) => {
                 setFechaHasta(v);
-                if (v < fechaDesde) setFechaDesde(v);
+                if (v && fechaDesde && v < fechaDesde) setFechaDesde(v);
               }} />
             </div>
           </div>
@@ -441,12 +442,20 @@ export function CobrosPendientesTab() {
             <div className="w-10 h-10 bg-[#004975]/5 rounded-xl flex items-center justify-center">
               <Calendar className="w-5 h-5 text-[#004975]" />
             </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">{isRangeToday ? 'Hoy' : 'Período'}</span>
+            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">
+              {!fechaDesde && !fechaHasta ? 'Histórico' : isRangeToday ? 'Hoy' : 'Período'}
+            </span>
           </div>
           <p className="text-xs font-bold text-[#004975] capitalize">
-            {fechaDesde === fechaHasta
-              ? format(new Date(fechaDesde + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })
-              : `${format(new Date(fechaDesde + 'T12:00:00'), "d MMM", { locale: es })} — ${format(new Date(fechaHasta + 'T12:00:00'), "d MMM yyyy", { locale: es })}`}
+            {!fechaDesde && !fechaHasta
+              ? 'Todos los registros'
+              : !fechaDesde
+                ? `Hasta ${format(new Date(fechaHasta + 'T12:00:00'), "d MMM yyyy", { locale: es })}`
+                : !fechaHasta
+                  ? `Desde ${format(new Date(fechaDesde + 'T12:00:00'), "d MMM yyyy", { locale: es })}`
+                  : fechaDesde === fechaHasta
+                    ? format(new Date(fechaDesde + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })
+                    : `${format(new Date(fechaDesde + 'T12:00:00'), "d MMM", { locale: es })} — ${format(new Date(fechaHasta + 'T12:00:00'), "d MMM yyyy", { locale: es })}`}
           </p>
         </div>
 
