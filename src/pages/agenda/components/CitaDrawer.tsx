@@ -13,6 +13,7 @@ import { useBranchStore } from '../../../stores/branchStore';
 import type { AtencionRow } from '../../../types/agenda';
 import { TIME_OPTIONS } from '../../../constants';
 import { DatePicker } from '../../../components/DatePicker';
+import { PaymentMethodPicker } from '../../../components/PaymentMethodPicker';
 
 interface PacienteMin {
   id: string;
@@ -90,11 +91,13 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const [showResults, setShowResults] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
+  const [adelantoReferencia, setAdelantoReferencia] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // useWatch en lugar de watch() → re-render aislado por campo (sub-usewatch-over-watch)
   const selectedPacienteId = useWatch({ control, name: 'paciente_id', defaultValue: '' });
   const watchedFechaCita = useWatch({ control, name: 'fecha_cita', defaultValue: '' });
+  const watchedAdelantoMetodo = useWatch({ control, name: 'adelanto_metodo_pago', defaultValue: '' });
   const selectedPaciente = pacientes.find(p => p.id === selectedPacienteId);
 
   // Fetch patient history when selected
@@ -213,6 +216,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
       }
       setSearchTerm('');
       setValidationError(null);
+      setAdelantoReferencia('');
 
       const fetchPodologos = async () => {
         if (!sucursalActiva?.id) return;
@@ -661,33 +665,24 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                   <DollarSign className="w-4 h-4 text-[#00C288]" />
                   Pago Adelantado (opcional)
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">Monto (S/)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] tabular-nums shadow-sm"
-                      {...register('adelanto')}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">Método de Pago</label>
-                    <select
-                      className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] shadow-sm"
-                      {...register('adelanto_metodo_pago')}
-                    >
-                      <option value="">Seleccione...</option>
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Yape">Yape</option>
-                      <option value="Plin">Plin</option>
-                      <option value="Tarjeta">Tarjeta</option>
-                      <option value="Transferencia">Transferencia</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 mb-1.5">Monto (S/)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] tabular-nums shadow-sm"
+                    {...register('adelanto')}
+                  />
                 </div>
+                <PaymentMethodPicker
+                  compact
+                  value={watchedAdelantoMetodo || ''}
+                  onChange={(v) => setValue('adelanto_metodo_pago', v)}
+                  referencia={adelantoReferencia}
+                  onReferenciaChange={setAdelantoReferencia}
+                />
                 <p className="text-[10px] font-bold text-[#00C288]/70">Si el paciente realiza un pago por adelantado, se descontará del total al momento del cobro.</p>
               </div>
 

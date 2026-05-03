@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, CheckCircle2, User, Clock, CreditCard, Hash, Gift, Package } from 'lucide-react';
+import { X, CheckCircle2, User, Clock, Gift, Package } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { StampCard } from '../../../components/StampCard';
 import { SELLOS_PARA_GRATIS } from '../../../config/clinicData';
 import { useBranchStore } from '../../../stores/branchStore';
 import type { CitaParaCobro } from '../../../types/entities';
-import { METODOS_PAGO } from '../../../constants';
+import { PaymentMethodPicker } from '../../../components/PaymentMethodPicker';
 
 interface ServicioActivo {
   id: string;
@@ -180,20 +180,6 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
   const handleMontoChange = (value: string) => {
     setMontoManual(true);
     setMontoTotal(value);
-  };
-
-  const getReferenciaLabel = (): { label: string; placeholder: string; required: boolean } => {
-    switch (metodoPago) {
-      case 'Tarjeta':
-        return { label: 'Código AP / N° de Voucher', placeholder: 'Ej: 123456', required: false };
-      case 'Yape':
-      case 'Plin':
-      case 'Transferencia':
-        return { label: 'Número de Operación', placeholder: 'Ej: OP-789012', required: false };
-      case 'Efectivo':
-      default:
-        return { label: 'N° de Recibo interno (Opcional)', placeholder: 'Ej: REC-001', required: false };
-    }
   };
 
   const validate = (): boolean => {
@@ -532,53 +518,14 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               )}
             </div>
 
-            {/* Método de Pago */}
-            <div>
-              <label className="block text-sm font-bold text-[#004975] mb-3">
-                Método de Pago <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {METODOS_PAGO.map(metodo => (
-                  <button
-                    key={metodo.value}
-                    type="button"
-                    onClick={() => setMetodoPago(metodo.value)}
-                    className={`p-3.5 rounded-xl border text-sm font-bold transition-all text-left flex items-center gap-2.5 ${
-                      metodoPago === metodo.value
-                        ? 'bg-[#004975] text-white border-[#004975] shadow-lg shadow-[#004975]/20 scale-[1.02]'
-                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
-                    }`}
-                  >
-                    <CreditCard className={`w-4 h-4 ${metodoPago === metodo.value ? 'text-white' : 'text-gray-400'}`} />
-                    {metodo.label}
-                  </button>
-                ))}
-              </div>
-              {errors.metodo && (
-                <p className="text-red-500 text-xs mt-2 font-bold px-1">{errors.metodo}</p>
-              )}
-            </div>
-
-            {/* Código de Referencia Dinámico */}
-            {metodoPago && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <label className="block text-sm font-bold text-[#004975] mb-2">
-                  {getReferenciaLabel().label}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                    <Hash className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder={getReferenciaLabel().placeholder}
-                    className="w-full pl-11 pr-4 border border-gray-200 bg-gray-50 focus:bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-[#00C288] transition-all shadow-sm font-bold text-sm"
-                    value={codigoReferencia}
-                    onChange={(e) => setCodigoReferencia(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
+            {/* Método de Pago + Referencia */}
+            <PaymentMethodPicker
+              value={metodoPago}
+              onChange={setMetodoPago}
+              referencia={codigoReferencia}
+              onReferenciaChange={setCodigoReferencia}
+              error={errors.metodo}
+            />
 
           </form>
         </div>

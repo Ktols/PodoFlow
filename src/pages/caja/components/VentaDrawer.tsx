@@ -3,8 +3,8 @@ import { X, Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import type { VentaItem } from '../../../types/entities';
-import { METODOS_PAGO_NOMBRES } from '../../../constants';
 import { useBranchStore } from '../../../stores/branchStore';
+import { PaymentMethodPicker } from '../../../components/PaymentMethodPicker';
 
 interface PacienteMin {
   id: string;
@@ -31,6 +31,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
   const [descuento, setDescuento] = useState('0');
   const [metodoPago, setMetodoPago] = useState('Efectivo');
   const [notas, setNotas] = useState('');
+  const [codigoReferencia, setCodigoReferencia] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { sucursalActiva } = useBranchStore();
 
@@ -54,6 +55,7 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
       setDescuento('0');
       setMetodoPago('Efectivo');
       setNotas('');
+      setCodigoReferencia('');
       setPacienteId(null);
       setPacienteNombre('');
       setPacienteSearch('');
@@ -325,22 +327,21 @@ export function VentaDrawer({ isOpen, onClose, onSuccess }: VentaDrawerProps) {
             </div>
           )}
 
-          {/* Descuento + Metodo Pago */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-[#004975] mb-1.5">Descuento (S/)</label>
-              <input type="number" min="0" step="0.01" value={descuento}
-                onChange={(e) => setDescuento(e.target.value)}
-                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] tabular-nums" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-[#004975] mb-1.5">Método de Pago</label>
-              <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}
-                className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288]">
-                {METODOS_PAGO_NOMBRES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </div>
+          {/* Descuento */}
+          <div>
+            <label className="block text-xs font-bold text-[#004975] mb-1.5">Descuento (S/)</label>
+            <input type="number" min="0" step="0.01" value={descuento}
+              onChange={(e) => setDescuento(e.target.value)}
+              className="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] tabular-nums" />
           </div>
+
+          {/* Método de Pago + Referencia */}
+          <PaymentMethodPicker
+            value={metodoPago}
+            onChange={setMetodoPago}
+            referencia={codigoReferencia}
+            onReferenciaChange={setCodigoReferencia}
+          />
 
           {/* Notas */}
           <div>
