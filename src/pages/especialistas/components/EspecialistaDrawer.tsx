@@ -6,6 +6,7 @@ import { especialistaSchema, type EspecialistaFormValues } from '../schemas/espe
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import type { Especialista } from '../../../types/entities';
+import { useBranchStore } from '../../../stores/branchStore';
 
 interface EspecialistaDrawerProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface EspecialistaDrawerProps {
 }
 
 export function EspecialistaDrawer({ isOpen, onClose, onSuccess, especialista }: EspecialistaDrawerProps) {
+  const { sucursalActiva } = useBranchStore();
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<EspecialistaFormValues>({
     resolver: zodResolver(especialistaSchema),
     defaultValues: {
@@ -79,8 +81,17 @@ export function EspecialistaDrawer({ isOpen, onClose, onSuccess, especialista }:
         if (error) throw error;
         toast.success('Especialista actualizado exitosamente');
       } else {
-        const { error } = await supabase.from('podologos').insert([dbData]);
+        const { data: newPodo, error } = await supabase.from('podologos').insert([dbData]).select().single();
         if (error) throw error;
+
+        // Auto-asignar a la sucursal activa
+        if (sucursalActiva?.id) {
+          await supabase.from('sucursal_podologos').insert([{
+            sucursal_id: sucursalActiva.id,
+            podologo_id: newPodo.id
+          }]);
+        }
+        
         toast.success('Especialista registrado exitosamente');
       }
 

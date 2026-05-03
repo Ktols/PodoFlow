@@ -8,6 +8,8 @@ import { EspecialistasPage } from './pages/especialistas/EspecialistasPage';
 import { CajaPage } from './pages/caja/CajaPage';
 import { TiendaPage } from './pages/configuracion/TiendaPage';
 import { UsuariosPage } from './pages/configuracion/UsuariosPage';
+import { ServiciosPage } from './pages/configuracion/ServiciosPage';
+import { InventarioPage } from './pages/configuracion/InventarioPage';
 import { Toaster } from 'react-hot-toast';
 import { Show, SignInButton } from '@clerk/react';
 import { AuthGuard } from './components/auth/AuthGuard';
@@ -55,6 +57,8 @@ export default function App() {
                 <Route path="caja" element={<CajaPage />} />
                 <Route path="tienda" element={<TiendaPage />} />
                 <Route path="usuarios" element={<UsuariosPage />} />
+                <Route path="servicios" element={<ServiciosPage />} />
+                <Route path="inventario" element={<InventarioPage />} />
               </Route>
             </Routes>
           </BrowserRouter>

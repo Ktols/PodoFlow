@@ -35,6 +35,11 @@ export function AgendaPage() {
   const [isGlobalSearch, setIsGlobalSearch] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState<Date>(new Date());
+<<<<<<< HEAD
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+=======
+>>>>>>> origin/main
 
   // Export state
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -89,11 +94,16 @@ export function AgendaPage() {
 
   useEffect(() => {
     const fetchPodologos = async () => {
-      const { data } = await supabase.from('podologos').select('id, nombres').order('nombres');
+      if (!sucursalActiva?.id) return;
+      const { data } = await supabase
+        .from('podologos')
+        .select('id, nombres, sucursal_podologos!inner(sucursal_id)')
+        .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
+        .order('nombres');
       if (data) setPodologos(data);
     };
     fetchPodologos();
-  }, []);
+  }, [sucursalActiva?.id]);
 
   const fetchCitas = async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
@@ -189,6 +199,11 @@ export function AgendaPage() {
                 onClick={() => {
                   setCalendarViewDate(selectedDate);
                   setIsCalendarOpen(!isCalendarOpen);
+<<<<<<< HEAD
+                  setShowYearPicker(false);
+                  setShowMonthPicker(false);
+=======
+>>>>>>> origin/main
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-xl transition-colors group"
               >
@@ -203,6 +218,80 @@ export function AgendaPage() {
               {isCalendarOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsCalendarOpen(false)} />
+<<<<<<< HEAD
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-[280px] animate-in zoom-in-95 fade-in duration-150">
+                    {/* Calendar header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => setCalendarViewDate(subMonths(calendarViewDate, 1))}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="flex items-center gap-1 relative">
+                        <button 
+                          type="button"
+                          onClick={() => { setShowMonthPicker(!showMonthPicker); setShowYearPicker(false); }}
+                          className={`text-xs font-black px-2 py-1 rounded-lg capitalize transition-colors ${showMonthPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'}`}
+                        >
+                          {format(calendarViewDate, 'MMMM', { locale: es })}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => { setShowYearPicker(!showYearPicker); setShowMonthPicker(false); }}
+                          className={`text-xs font-black px-2 py-1 rounded-lg transition-colors ${showYearPicker ? 'bg-[#00C288] text-white' : 'text-[#004975] hover:bg-gray-50'}`}
+                        >
+                          {calendarViewDate.getFullYear()}
+                        </button>
+
+                        {/* Custom Year Picker Overlay */}
+                        {showYearPicker && (
+                          <div className="absolute top-full left-0 mt-1 w-28 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[51] scrollbar-thin scrollbar-thumb-gray-200 p-1">
+                            {Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - 5 + i).map(y => (
+                              <button
+                                key={y}
+                                type="button"
+                                onClick={() => {
+                                  const d = new Date(calendarViewDate);
+                                  d.setFullYear(y);
+                                  setCalendarViewDate(d);
+                                  setShowYearPicker(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors ${y === calendarViewDate.getFullYear() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'}`}
+                              >
+                                {y}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Custom Month Picker Overlay */}
+                        {showMonthPicker && (
+                          <div className="absolute top-full left-0 mt-1 w-32 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-2xl z-[51] scrollbar-thin scrollbar-thumb-gray-200 p-1">
+                            {Array.from({ length: 12 }, (_, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => {
+                                  const d = new Date(calendarViewDate);
+                                  d.setMonth(i);
+                                  setCalendarViewDate(d);
+                                  setShowMonthPicker(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[11px] font-bold rounded-lg transition-colors capitalize ${i === calendarViewDate.getMonth() ? 'text-white bg-[#00C288]' : 'text-[#004975] hover:bg-gray-50'}`}
+                              >
+                                {format(new Date(2024, i, 1), 'MMMM', { locale: es })}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => setCalendarViewDate(addMonths(calendarViewDate, 1))}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
+=======
                   <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-[300px] animate-in zoom-in-95 fade-in duration-150">
                     {/* Calendar header */}
                     <div className="flex items-center justify-between mb-3">
@@ -218,20 +307,31 @@ export function AgendaPage() {
                       <button
                         onClick={() => setCalendarViewDate(addMonths(calendarViewDate, 1))}
                         className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-[#004975]"
+>>>>>>> origin/main
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
 
                     {/* Day names */}
+<<<<<<< HEAD
+                    <div className="grid grid-cols-7 mb-2">
+                      {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => (
+                        <div key={d} className="text-center text-[10px] font-black text-gray-300 uppercase">{d}</div>
+=======
                     <div className="grid grid-cols-7 mb-1">
                       {['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map(d => (
                         <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">{d}</div>
+>>>>>>> origin/main
                       ))}
                     </div>
 
                     {/* Calendar grid */}
+<<<<<<< HEAD
+                    <div className="grid grid-cols-7 gap-1">
+=======
                     <div className="grid grid-cols-7">
+>>>>>>> origin/main
                       {(() => {
                         const monthStart = startOfMonth(calendarViewDate);
                         const monthEnd = endOfMonth(calendarViewDate);
@@ -251,6 +351,16 @@ export function AgendaPage() {
                                 setSelectedDate(day);
                                 setIsCalendarOpen(false);
                               }}
+<<<<<<< HEAD
+                              className={`h-8 w-full rounded-lg text-xs font-bold transition-all ${
+                                isSelected
+                                  ? 'bg-[#00C288] text-white shadow-lg shadow-[#00C288]/30'
+                                  : isTodayDay
+                                    ? 'bg-[#00C288]/10 text-[#00C288] hover:bg-[#00C288]/20'
+                                    : isCurrentMonth
+                                      ? 'text-[#004975] hover:bg-gray-50'
+                                      : 'text-gray-200'
+=======
                               className={`h-9 w-full rounded-lg text-sm font-bold transition-all ${
                                 isSelected
                                   ? 'bg-[#00C288] text-white shadow-sm'
@@ -259,6 +369,7 @@ export function AgendaPage() {
                                     : isCurrentMonth
                                       ? 'text-[#004975] hover:bg-gray-100'
                                       : 'text-gray-300 hover:bg-gray-50'
+>>>>>>> origin/main
                               }`}
                             >
                               {format(day, 'd')}
@@ -268,6 +379,17 @@ export function AgendaPage() {
                       })()}
                     </div>
 
+<<<<<<< HEAD
+                    <button
+                      onClick={() => {
+                        setSelectedDate(new Date());
+                        setIsCalendarOpen(false);
+                      }}
+                      className="mt-4 w-full py-2 bg-[#00C288]/10 text-[#00C288] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#00C288]/20 transition-colors"
+                    >
+                      Hoy
+                    </button>
+=======
                     {/* Quick actions */}
                     <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                       <button
@@ -309,6 +431,7 @@ export function AgendaPage() {
                         })}
                       </select>
                     </div>
+>>>>>>> origin/main
                   </div>
                 </>
               )}

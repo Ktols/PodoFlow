@@ -3,9 +3,14 @@ import { Plus, Pencil, Package, Search } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { ServicioDrawer } from './ServicioDrawer';
+<<<<<<< HEAD
+import { useBranchStore } from '../../../stores/branchStore';
+=======
+>>>>>>> origin/main
 import type { Servicio } from '../../../types/entities';
 
 export function ListaPreciosTab() {
+  const { sucursalActiva } = useBranchStore();
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,10 +18,12 @@ export function ListaPreciosTab() {
   const [servicioEnEdicion, setServicioEnEdicion] = useState<Servicio | null>(null);
 
   const fetchServicios = async () => {
+    if (!sucursalActiva?.id) return;
     setIsLoading(true);
     const { data, error } = await supabase
       .from('servicios')
       .select('*')
+      .eq('sucursal_id', sucursalActiva.id)
       .order('nombre', { ascending: true });
 
     if (error) {
@@ -30,7 +37,7 @@ export function ListaPreciosTab() {
 
   useEffect(() => {
     fetchServicios();
-  }, []);
+  }, [sucursalActiva?.id]);
 
   const filteredServicios = servicios.filter(s =>
     s.nombre.toLowerCase().includes(searchTerm.toLowerCase())

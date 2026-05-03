@@ -7,8 +7,10 @@ import {
   ArrowUpRight, 
   Plus,
   Play,
-  CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Package,
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -30,6 +32,7 @@ import type { ProximaCitaRow } from '../types/agenda';
 interface DashboardStats {
   todayAppointments: number;
   todayRevenue: number;
+  todaySalesRevenue: number;
   newPatientsMonth: number;
   pendingPaymentsCount: number;
 }
@@ -40,17 +43,26 @@ interface ChartData {
   label: string;
 }
 
+interface LowStockProduct {
+  id: string;
+  nombre: string;
+  stock: number;
+  stock_minimo: number;
+}
+
 export function Dashboard() {
   const { sucursalActiva } = useBranchStore();
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     todayAppointments: 0,
     todayRevenue: 0,
+    todaySalesRevenue: 0,
     newPatientsMonth: 0,
     pendingPaymentsCount: 0
   });
   const [last7DaysRevenue, setLast7DaysRevenue] = useState<ChartData[]>([]);
   const [nextAppointments, setNextAppointments] = useState<ProximaCitaRow[]>([]);
+  const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -67,10 +79,13 @@ export function Dashboard() {
       const [
         { count: appointmentsCount },
         { data: todayPayments },
+        { data: todaySales },
         { count: patientsCount },
         { data: todayCitasAtendidas },
         { data: weekPayments },
-        { data: nextCitas }
+        { data: weekSales },
+        { data: nextCitas },
+        { data: alertProducts }
       ] = await Promise.all([
         supabase
           .from('citas')
@@ -84,6 +99,13 @@ export function Dashboard() {
           .eq('sucursal_id', sucursalActiva.id)
           .gte('fecha_pago', startOfDay(new Date()).toISOString())
           .lte('fecha_pago', endOfDay(new Date()).toISOString()),
+        // Ventas de productos del día
+        supabase
+          .from('ventas')
+          .select('total')
+          .eq('sucursal_id', sucursalActiva.id)
+          .gte('created_at', startOfDay(new Date()).toISOString())
+          .lte('created_at', endOfDay(new Date()).toISOString()),
         supabase
           .from('pacientes')
           .select('*', { count: 'exact', head: true })
@@ -100,6 +122,12 @@ export function Dashboard() {
           .select('monto_total, fecha_pago')
           .eq('sucursal_id', sucursalActiva.id)
           .gte('fecha_pago', subDays(new Date(), 7).toISOString()),
+        // Ventas de productos de la última semana
+        supabase
+          .from('ventas')
+          .select('total, created_at')
+          .eq('sucursal_id', sucursalActiva.id)
+          .gte('created_at', subDays(new Date(), 7).toISOString()),
         supabase
           .from('citas')
           .select(`
@@ -114,10 +142,18 @@ export function Dashboard() {
           .eq('sucursal_id', sucursalActiva.id)
           .in('estado', ['Programada', 'Confirmada', 'En Sala de Espera'])
           .order('hora_cita', { ascending: true })
-          .limit(5)
+          .limit(5),
+        // Productos con stock bajo o agotado (filtrado client-side porque PostgREST no soporta comparar columna vs columna)
+        supabase
+          .from('productos')
+          .select('id, nombre, stock, stock_minimo')
+          .eq('estado', true)
+          .eq('sucursal_id', sucursalActiva.id)
+          .order('stock', { ascending: true })
       ]);
 
       const revenueToday = todayPayments?.reduce((sum, p) => sum + p.monto_total, 0) || 0;
+      const salesRevenueToday = todaySales?.reduce((sum, v) => sum + v.total, 0) || 0;
       
       const atendidasIds = todayCitasAtendidas?.map(c => c.id) || [];
       let pendingCount = 0;
@@ -150,12 +186,28 @@ export function Dashboard() {
         }
       });
 
+      // Sumar ventas de productos a la gráfica semanal
+      weekSales?.forEach(v => {
+        const key = format(parseISO(v.created_at), 'yyyy-MM-dd');
+        if (chartMap.has(key)) {
+          const entry = chartMap.get(key);
+          entry.revenue += v.total;
+        }
+      });
+
       setLast7DaysRevenue(Array.from(chartMap.values()));
       setNextAppointments((nextCitas as unknown as ProximaCitaRow[]) || []);
 
+      // Filtrar productos con stock bajo o agotado (comparación columna vs columna)
+      const filteredLowStock = (alertProducts as LowStockProduct[] || [])
+        .filter(p => p.stock === 0 || (p.stock_minimo > 0 && p.stock <= p.stock_minimo))
+        .slice(0, 5);
+      setLowStockProducts(filteredLowStock);
+
       setStats({
         todayAppointments: appointmentsCount || 0,
-        todayRevenue: revenueToday,
+        todayRevenue: revenueToday + salesRevenueToday,
+        todaySalesRevenue: salesRevenueToday,
         newPatientsMonth: patientsCount || 0,
         pendingPaymentsCount: pendingCount
       });
@@ -184,6 +236,9 @@ export function Dashboard() {
       </div>
     );
   }
+
+  const totalRevenue = stats.todayRevenue;
+  const servicesRevenue = totalRevenue - stats.todaySalesRevenue;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-10">
@@ -232,7 +287,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Revenue KPI */}
+        {/* Revenue KPI — Servicios + Ventas */}
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 transform translate-x-4 -translate-y-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
             <TrendingUp className="w-24 h-24 text-secondary" />
@@ -244,9 +299,16 @@ export function Dashboard() {
             <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Ingresos Hoy</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-black text-[#004975] tabular-nums">{formatCurrency(stats.todayRevenue)}</p>
-            {stats.todayRevenue > 0 && <ArrowUpRight className="w-4 h-4 text-primary" />}
+            <p className="text-3xl font-black text-[#004975] tabular-nums">{formatCurrency(totalRevenue)}</p>
+            {totalRevenue > 0 && <ArrowUpRight className="w-4 h-4 text-primary" />}
           </div>
+          {(servicesRevenue > 0 || stats.todaySalesRevenue > 0) && (
+            <div className="flex items-center gap-3 mt-2 text-[10px] font-bold text-gray-400">
+              {servicesRevenue > 0 && <span>Servicios: {formatCurrency(servicesRevenue)}</span>}
+              {servicesRevenue > 0 && stats.todaySalesRevenue > 0 && <span className="text-gray-200">·</span>}
+              {stats.todaySalesRevenue > 0 && <span>Productos: {formatCurrency(stats.todaySalesRevenue)}</span>}
+            </div>
+          )}
         </div>
 
         {/* New Patients KPI */}
@@ -291,7 +353,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-xl font-black text-[#004975]">Rendimiento Semanal</h3>
-              <p className="text-gray-400 text-sm font-medium">Ingresos diarios agrupados (Soles)</p>
+              <p className="text-gray-400 text-sm font-medium">Ingresos diarios: servicios + ventas (Soles)</p>
             </div>
             <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
               <span className="text-[10px] font-black text-[#004975] px-3 py-1 bg-white rounded-lg shadow-sm">Ingresos</span>
@@ -414,9 +476,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Small Stats Grid */}
+      {/* Bottom Section: Ticket Promedio + Inventario */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-[#004975] to-[#003a5e] p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
+        {/* Ticket Promedio */}
+        <div className="bg-gradient-to-br from-[#004975] to-[#003a5e] p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden self-start">
           <div className="absolute -bottom-6 -right-6 opacity-10">
             <TrendingUp className="w-48 h-48" />
           </div>
@@ -424,32 +487,77 @@ export function Dashboard() {
           <p className="text-3xl font-black tabular-nums">
             {formatCurrency(stats.todayRevenue / (stats.todayAppointments || 1))}
           </p>
-          <div className="mt-4 flex items-center gap-2">
-            <div className="px-2 py-1 bg-primary/20 text-primary rounded-md text-[10px] font-black">
-              +12% este mes
-            </div>
-          </div>
+          <p className="text-xs font-medium opacity-40 mt-3">Basado en citas e ingresos de hoy</p>
         </div>
 
-        <div className="md:col-span-2 bg-white px-8 py-4 rounded-[2.5rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex items-center justify-between">
-           <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-[#00C288]/10 rounded-[1.5rem] flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-primary" />
+        {/* Alertas de Inventario */}
+        <div className="md:col-span-2 bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+                <Package className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <h5 className="font-black text-[#004975] text-lg">Sistema Optimizado</h5>
-                <p className="text-sm text-gray-400 font-medium">Todas tus operaciones están al día.</p>
+                <h4 className="font-black text-[#004975] text-base">Alertas de Inventario</h4>
+                <p className="text-[11px] text-gray-400 font-bold">Productos con stock bajo o agotado</p>
               </div>
-           </div>
-           <div className="hidden sm:flex items-center -space-x-4">
-              {[1,2,3,4].map(i => (
-                <div key={i} className={`w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-black text-white ${
-                   i === 1 ? 'bg-primary' : i === 2 ? 'bg-blue-400' : i === 3 ? 'bg-orange-400' : 'bg-gray-300'
-                }`}>
-                  {i}
-                </div>
-              ))}
-           </div>
+            </div>
+            <button
+              onClick={() => navigate('/inventario')}
+              className="text-[11px] font-black text-primary hover:underline uppercase tracking-wider flex items-center gap-1"
+            >
+              Ver Todo <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          {lowStockProducts.length === 0 ? (
+            <div className="flex items-center gap-3 bg-[#00C288]/5 rounded-2xl p-4 border border-[#00C288]/10">
+              <div className="w-8 h-8 bg-[#00C288]/10 rounded-lg flex items-center justify-center shrink-0">
+                <Package className="w-4 h-4 text-[#00C288]" />
+              </div>
+              <div>
+                <p className="font-bold text-[#004975] text-sm">Todo en orden</p>
+                <p className="text-[11px] text-gray-400 font-medium">No hay productos con stock bajo.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {lowStockProducts.map(product => {
+                const isOut = product.stock === 0;
+                return (
+                  <div
+                    key={product.id}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border transition-colors ${
+                      isOut 
+                        ? 'bg-red-50/50 border-red-100' 
+                        : 'bg-orange-50/50 border-orange-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        isOut ? 'bg-red-100' : 'bg-orange-100'
+                      }`}>
+                        <AlertTriangle className={`w-4 h-4 ${isOut ? 'text-red-500' : 'text-orange-500'}`} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#004975] text-sm">{product.nombre}</p>
+                        <p className={`text-[10px] font-black uppercase tracking-wider ${isOut ? 'text-red-500' : 'text-orange-500'}`}>
+                          {isOut ? 'Agotado' : 'Stock Bajo'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className={`px-3 py-1.5 rounded-lg text-sm font-black tabular-nums ${
+                      isOut 
+                        ? 'bg-red-100 text-red-600' 
+                        : 'bg-orange-100 text-orange-600'
+                    }`}>
+                      {product.stock} / {product.stock_minimo}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

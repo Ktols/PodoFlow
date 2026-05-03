@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+<<<<<<< HEAD
+import { useBranchStore } from '../../../stores/branchStore';
+=======
+>>>>>>> origin/main
 import type { Servicio } from '../../../types/entities';
 
 interface ServicioDrawerProps {
@@ -18,6 +22,7 @@ interface ServicioForm {
 }
 
 export function ServicioDrawer({ isOpen, onClose, onSuccess, servicioEnEdicion }: ServicioDrawerProps) {
+  const { sucursalActiva } = useBranchStore();
   const [form, setForm] = useState<ServicioForm>({
     nombre: '',
     precio_base: '',
@@ -81,7 +86,7 @@ export function ServicioDrawer({ isOpen, onClose, onSuccess, servicioEnEdicion }
       } else {
         const { error } = await supabase
           .from('servicios')
-          .insert([payload]);
+          .insert([{ ...payload, sucursal_id: sucursalActiva?.id }]);
 
         if (error) throw error;
         toast.success('Servicio creado correctamente');

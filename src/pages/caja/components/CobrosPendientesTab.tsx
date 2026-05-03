@@ -46,11 +46,16 @@ export function CobrosPendientesTab() {
 
   useEffect(() => {
     const fetchPodologos = async () => {
-      const { data } = await supabase.from('podologos').select('id, nombres').order('nombres');
+      if (!sucursalActiva?.id) return;
+      const { data } = await supabase
+        .from('podologos')
+        .select('id, nombres, sucursal_podologos!inner(sucursal_id)')
+        .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
+        .order('nombres');
       if (data) setPodologos(data);
     };
     fetchPodologos();
-  }, []);
+  }, [sucursalActiva?.id]);
 
   const limpiarFiltros = () => {
     setFilterPagoEstado('todos');
@@ -191,7 +196,7 @@ export function CobrosPendientesTab() {
 
   useEffect(() => {
     fetchData();
-  }, [fechaDesde, fechaHasta]);
+  }, [fechaDesde, fechaHasta, sucursalActiva?.id]);
 
   const getPagoByCitaId = (citaId: string) => {
     return pagos.find(p => p.cita_id === citaId);
@@ -228,6 +233,7 @@ export function CobrosPendientesTab() {
       const { data: serviciosData } = await supabase
         .from('servicios')
         .select('nombre, precio_base')
+        .eq('sucursal_id', sucursalActiva?.id)
         .in('nombre', atencionData.tratamientos_realizados);
 
       if (serviciosData) {
