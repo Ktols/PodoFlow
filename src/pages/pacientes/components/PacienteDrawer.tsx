@@ -187,6 +187,7 @@ export function PacienteDrawer({ isOpen, onClose, onSuccess, onSuccessWithData, 
                 <DatePicker
                   value={watch('fecha_nacimiento') || ''}
                   onChange={(v) => setValue('fecha_nacimiento', v)}
+                  maxDate={new Date().toISOString().split('T')[0]}
                 />
               </div>
             </div>
