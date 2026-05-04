@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EasyPod</string>
+    <string name="title_activity_main">EasyPod</string>
+    <string name="package_name">com.easypod.app</string>
+    <string name="custom_url_scheme">com.easypod.app</string>
+</resources>
