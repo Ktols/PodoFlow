@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Users, BriefcaseMedical, UserCog, ChevronDown, Receipt, ShoppingCart, Store, UsersRound, Tag, Package } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, BriefcaseMedical, UserCog, ChevronDown, Receipt, ShoppingCart, Store, UsersRound, Tag, Package, FileBarChart } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
 interface SidebarProps {
@@ -32,6 +32,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     { path: '/agenda', name: 'Agenda', icon: Calendar, visible: true },
     { path: '/pacientes', name: 'Pacientes', icon: Users, visible: true },
     { path: '/especialistas', name: 'Personal', icon: UserCog, visible: isDueno || isAdmin },
+    { path: '/reportes', name: 'Reportes', icon: FileBarChart, visible: isDueno || isAdmin },
   ].filter(r => r.visible);
 
   const configRoutes = [
