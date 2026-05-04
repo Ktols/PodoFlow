@@ -437,7 +437,7 @@ export function AgendaPage() {
           {isDueno && (
             <button
               onClick={() => setIsExportOpen(true)}
-              className="p-3.5 bg-white hover:bg-gray-50 text-[#004975] rounded-xl border border-gray-200 shadow-sm transition-colors"
+              className="p-2.5 md:p-3.5 bg-white hover:bg-gray-50 text-[#004975] rounded-xl border border-gray-200 shadow-sm transition-colors"
               title="Exportar Agenda"
             >
               <Download className="w-5 h-5" />
@@ -449,7 +449,7 @@ export function AgendaPage() {
                 setCitaEnEdicion(null);
                 setIsDrawerOpen(true);
               }}
-              className="w-full lg:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-8 py-3.5 rounded-xl flex items-center justify-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5"
+              className="w-full lg:w-auto bg-[#00C288] hover:bg-[#00ab78] text-white px-4 py-2.5 md:px-8 md:py-3.5 rounded-xl flex items-center justify-center gap-2 font-black text-xs md:text-sm tracking-wide shadow-md transition-all hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5" />
               NUEVO TURNO

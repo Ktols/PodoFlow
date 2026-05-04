@@ -200,7 +200,7 @@ export function ProductosTab() {
           {isDueno && (
             <button
               onClick={() => setIsExportOpen(true)}
-              className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors shrink-0"
+              className="bg-white hover:bg-gray-50 text-[#004975] px-3 py-2 md:px-4 md:py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs md:text-sm border border-gray-200 shadow-sm transition-colors shrink-0"
             >
               <Download className="w-4 h-4" />
               Exportar
@@ -208,7 +208,7 @@ export function ProductosTab() {
           )}
           <button
             onClick={handleNew}
-            className="bg-[#00C288] hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5 shrink-0"
+            className="bg-[#00C288] hover:bg-[#00ab78] text-white px-3 py-2 md:px-5 md:py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black text-xs md:text-sm tracking-wide shadow-md transition-all hover:-translate-y-0.5 shrink-0"
           >
             <Plus className="w-5 h-5" />
             NUEVO PRODUCTO

@@ -128,7 +128,7 @@ export function PacientesPage() {
           {isDueno && (
             <button
               onClick={() => setIsExportOpen(true)}
-              className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+              className="bg-white hover:bg-gray-50 text-[#004975] px-3 py-2 md:px-4 md:py-2.5 rounded-lg flex items-center gap-1.5 font-bold text-xs md:text-sm border border-gray-200 shadow-sm transition-colors"
             >
               <Download className="w-4 h-4" />
               Exportar
@@ -140,9 +140,9 @@ export function PacientesPage() {
                 setSelectedPatient(null);
                 setIsDrawerOpen(true);
               }}
-              className="bg-primary hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-md transition-colors"
+              className="bg-primary hover:bg-[#00ab78] text-white px-3 py-2 md:px-5 md:py-2.5 rounded-lg flex items-center gap-1.5 font-medium text-xs md:text-sm shadow-md transition-colors"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4 md:w-5 md:h-5" />
               <span>Nuevo Paciente</span>
             </button>
           )}
@@ -256,7 +256,7 @@ export function PacientesPage() {
                     </td>
                     <td className="p-4">
                       {(paciente.alergias_alertas || paciente.diabetes || paciente.hipertension || paciente.enfermedad_vascular || paciente.tratamiento_oncologico || paciente.alergias_detalle) ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-800 whitespace-nowrap">
                           Contiene Alertas
                         </span>
                       ) : (

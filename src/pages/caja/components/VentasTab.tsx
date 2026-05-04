@@ -244,8 +244,8 @@ export function VentasTab() {
                           <span className="text-[10px] font-bold text-gray-500 tabular-nums">{venta.codigo_referencia}</span>
                         )}
                         <button onClick={() => handlePrintVenta(venta)}
-                          className="text-[10px] font-black text-[#004975] hover:text-[#00C288] uppercase tracking-wider transition-colors flex items-center gap-1 mt-0.5">
-                          <Printer className="w-3 h-3" /> Imprimir Ticket
+                          className="text-[11px] font-black text-[#004975] hover:text-[#00C288] uppercase tracking-wider transition-colors flex items-center gap-1.5 mt-0.5">
+                          <Printer className="w-3.5 h-3.5" /> Imprimir Ticket
                         </button>
                       </div>
                     </td>
