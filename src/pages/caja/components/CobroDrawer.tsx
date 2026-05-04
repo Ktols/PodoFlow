@@ -1,17 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, CheckCircle2, User, Clock, CreditCard, Hash, Gift } from 'lucide-react';
+import { X, CheckCircle2, User, Clock, Gift, Package } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { StampCard } from '../../../components/StampCard';
 import { SELLOS_PARA_GRATIS } from '../../../config/clinicData';
 import { useBranchStore } from '../../../stores/branchStore';
 import type { CitaParaCobro } from '../../../types/entities';
-import { METODOS_PAGO } from '../../../constants';
+import { PaymentMethodPicker } from '../../../components/PaymentMethodPicker';
 
 interface ServicioActivo {
   id: string;
   nombre: string;
   precio_base: number;
+}
+
+interface ProductoRecetado {
+  id: string;
+  nombre: string;
+  precio: number;
+  stock: number;
 }
 
 interface CobroDrawerProps {
@@ -35,6 +42,8 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
   const [pacienteSellos, setPacienteSellos] = useState(0);
   const [pacienteSellosCanjeados, setPacienteSellosCanjeados] = useState(0);
   const [canjearVisitaGratis, setCanjearVisitaGratis] = useState(false);
+  const [productosRecetados, setProductosRecetados] = useState<ProductoRecetado[]>([]);
+  const [selectedProductos, setSelectedProductos] = useState<Set<string>>(new Set());
 
   // Contador de aperturas: se incrementa cada vez que isOpen pasa a true.
   // Esto fuerza al useEffect a re-ejecutarse incluso si cita es el mismo objeto.
@@ -62,6 +71,8 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     setCanjearVisitaGratis(false);
     setPacienteSellos(0);
     setPacienteSellosCanjeados(0);
+    setProductosRecetados([]);
+    setSelectedProductos(new Set());
 
     const initDrawer = async () => {
       // 0. Fetch sellos del paciente
@@ -89,13 +100,13 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       // 2. Fetch FRESCO de la atención vinculada a esta cita
       const { data: atencionData } = await supabase
         .from('atenciones')
-        .select('tratamientos_realizados')
+        .select('tratamientos_realizados, medicamentos_recetados')
         .eq('cita_id', cita.id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      // 3. Reset + inyección de datos frescos
+      // 3. Inyección de servicios heredados
       if (atencionData?.tratamientos_realizados && Array.isArray(atencionData.tratamientos_realizados)) {
         const nombresHeredados: string[] = atencionData.tratamientos_realizados;
         const idsPreseleccionados = new Set<string>();
@@ -108,11 +119,23 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
           setSelectedServicios(idsPreseleccionados);
           setHeredadoDeMedico(true);
 
-          // 4. Cálculo inmediato del monto heredado (no depender del useEffect secundario)
           const totalHeredado = svcs
             .filter(s => idsPreseleccionados.has(s.id))
             .reduce((sum, s) => sum + s.precio_base, 0);
           setMontoTotal(totalHeredado > 0 ? totalHeredado.toFixed(2) : '');
+        }
+      }
+
+      // 4. Resolver medicamentos recetados a productos con precio y stock
+      if (atencionData?.medicamentos_recetados && Array.isArray(atencionData.medicamentos_recetados) && atencionData.medicamentos_recetados.length > 0) {
+        const { data: prodsData } = await supabase
+          .from('productos')
+          .select('id, nombre, precio, stock')
+          .in('nombre', atencionData.medicamentos_recetados)
+          .eq('estado', true);
+
+        if (prodsData && prodsData.length > 0) {
+          setProductosRecetados(prodsData);
         }
       }
     };
@@ -120,47 +143,43 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     initDrawer();
   }, [openCounter]); // Solo depende del contador de aperturas
 
-  // Auto-calculate total from selected
+  // Auto-calculate total from selected services + products
   useEffect(() => {
     if (!montoManual) {
-      const total = servicios
+      const totalServicios = servicios
         .filter(s => selectedServicios.has(s.id))
         .reduce((sum, s) => sum + s.precio_base, 0);
+      const totalProductos = productosRecetados
+        .filter(p => selectedProductos.has(p.id))
+        .reduce((sum, p) => sum + p.precio, 0);
+      const total = totalServicios + totalProductos;
       setMontoTotal(total > 0 ? total.toFixed(2) : '');
     }
-  }, [selectedServicios, servicios, montoManual]);
+  }, [selectedServicios, servicios, selectedProductos, productosRecetados, montoManual]);
 
   const toggleServicio = (id: string) => {
     setSelectedServicios(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-    // Reset manual mode when toggling services
+    setMontoManual(false);
+  };
+
+  const toggleProducto = (id: string) => {
+    setSelectedProductos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
     setMontoManual(false);
   };
 
   const handleMontoChange = (value: string) => {
     setMontoManual(true);
     setMontoTotal(value);
-  };
-
-  const getReferenciaLabel = (): { label: string; placeholder: string; required: boolean } => {
-    switch (metodoPago) {
-      case 'Tarjeta':
-        return { label: 'Código AP / N° de Voucher', placeholder: 'Ej: 123456', required: false };
-      case 'Yape':
-      case 'Plin':
-      case 'Transferencia':
-        return { label: 'Número de Operación', placeholder: 'Ej: OP-789012', required: false };
-      case 'Efectivo':
-      default:
-        return { label: 'N° de Recibo interno (Opcional)', placeholder: 'Ej: REC-001', required: false };
-    }
   };
 
   const validate = (): boolean => {
@@ -172,6 +191,9 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     }
     if (!metodoPago) {
       newErrors.metodo = 'Seleccione un método de pago.';
+    }
+    if (metodoPago && metodoPago !== 'Efectivo' && !codigoReferencia.trim()) {
+      newErrors.referencia = 'Ingrese el código de referencia o número de operación.';
     }
 
     setErrors(newErrors);
@@ -189,7 +211,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       const montoServicios = parseFloat(montoTotal);
       // Si canjea visita gratis: total = 0; si no: monto - adelanto
       const montoFinal = canjearVisitaGratis ? 0 : Math.max(0, montoServicios - adelantoNum);
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         cita_id: cita.id,
         paciente_id: cita.paciente_id,
         monto_total: montoFinal,
@@ -206,6 +228,16 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       const { error } = await supabase.from('pagos').insert([payload]);
 
       if (error) throw error;
+
+      // Descontar stock de productos recetados seleccionados
+      if (selectedProductos.size > 0) {
+        for (const prod of productosRecetados.filter(p => selectedProductos.has(p.id))) {
+          await supabase
+            .from('productos')
+            .update({ stock: Math.max(0, prod.stock - 1) })
+            .eq('id', prod.id);
+        }
+      }
 
       // Actualizar sellos del paciente
       if (canjearVisitaGratis) {
@@ -244,13 +276,13 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
   if (!isOpen || !cita) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-[9999] !m-0">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity animate-in fade-in"
         onClick={onClose}
       />
 
-      <div className="absolute right-0 top-0 h-full w-full md:w-[500px] lg:max-w-lg bg-white shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
+      <div className="absolute right-0 inset-y-0 w-full md:w-[500px] lg:max-w-lg bg-white shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-black text-[#004975]">Registrar Cobro</h2>
@@ -392,15 +424,79 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               )}
             </div>
 
+            {/* Productos Recetados (Opcional) */}
+            {productosRecetados.length > 0 && (
+              <div className="animate-in fade-in duration-300">
+                <label className="block text-sm font-bold text-[#004975] mb-2">
+                  <span className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-purple-500" />
+                    Productos Recetados
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">Opcional</span>
+                  </span>
+                </label>
+                <p className="text-[11px] font-bold text-gray-400 mb-3">
+                  El paciente puede elegir comprar estos productos en la clínica.
+                </p>
+                <div className="space-y-2">
+                  {productosRecetados.map(producto => {
+                    const isSelected = selectedProductos.has(producto.id);
+                    const sinStock = producto.stock <= 0;
+                    return (
+                      <button
+                        key={producto.id}
+                        type="button"
+                        disabled={sinStock}
+                        onClick={() => toggleProducto(producto.id)}
+                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${
+                          sinStock
+                            ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed'
+                            : isSelected
+                              ? 'bg-purple-50 border-purple-200 shadow-sm'
+                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                              sinStock
+                                ? 'border-gray-200 bg-gray-100'
+                                : isSelected
+                                  ? 'bg-purple-500 border-purple-500'
+                                  : 'border-gray-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <span className={`text-sm font-bold ${isSelected ? 'text-[#004975]' : 'text-gray-600'}`}>
+                              {producto.nombre}
+                            </span>
+                            {sinStock && (
+                              <span className="block text-[10px] font-bold text-red-500">Sin stock</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`text-sm font-black tabular-nums ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
+                          S/ {producto.precio.toFixed(2)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Monto Total */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-bold text-[#004975]">
                   Monto Total <span className="text-red-500">*</span>
                 </label>
-                {selectedServicios.size > 0 && (
+                {(selectedServicios.size > 0 || selectedProductos.size > 0) && (
                   <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    {montoManual ? '✏️ Editado manualmente' : `${selectedServicios.size} servicio(s) sumados`}
+                    {montoManual ? '✏️ Editado manualmente' : `${selectedServicios.size} servicio(s)${selectedProductos.size > 0 ? ` + ${selectedProductos.size} producto(s)` : ''}`}
                   </span>
                 )}
               </div>
@@ -425,59 +521,21 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               )}
             </div>
 
-            {/* Método de Pago */}
-            <div>
-              <label className="block text-sm font-bold text-[#004975] mb-3">
-                Método de Pago <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {METODOS_PAGO.map(metodo => (
-                  <button
-                    key={metodo.value}
-                    type="button"
-                    onClick={() => setMetodoPago(metodo.value)}
-                    className={`p-3.5 rounded-xl border text-sm font-bold transition-all text-left flex items-center gap-2.5 ${
-                      metodoPago === metodo.value
-                        ? 'bg-[#004975] text-white border-[#004975] shadow-lg shadow-[#004975]/20 scale-[1.02]'
-                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
-                    }`}
-                  >
-                    <CreditCard className={`w-4 h-4 ${metodoPago === metodo.value ? 'text-white' : 'text-gray-400'}`} />
-                    {metodo.label}
-                  </button>
-                ))}
-              </div>
-              {errors.metodo && (
-                <p className="text-red-500 text-xs mt-2 font-bold px-1">{errors.metodo}</p>
-              )}
-            </div>
-
-            {/* Código de Referencia Dinámico */}
-            {metodoPago && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <label className="block text-sm font-bold text-[#004975] mb-2">
-                  {getReferenciaLabel().label}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                    <Hash className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder={getReferenciaLabel().placeholder}
-                    className="w-full pl-11 pr-4 border border-gray-200 bg-gray-50 focus:bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-[#00C288] transition-all shadow-sm font-bold text-sm"
-                    value={codigoReferencia}
-                    onChange={(e) => setCodigoReferencia(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
+            {/* Método de Pago + Referencia */}
+            <PaymentMethodPicker
+              value={metodoPago}
+              onChange={setMetodoPago}
+              referencia={codigoReferencia}
+              onReferenciaChange={setCodigoReferencia}
+              error={errors.metodo}
+              referenciaError={errors.referencia}
+            />
 
           </form>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-100 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
+        <div className="p-4 md:p-6 border-t border-gray-100 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
           {/* Summary Bar */}
           {montoTotal && parseFloat(montoTotal) > 0 && (() => {
             const montoNum = parseFloat(montoTotal);
@@ -485,10 +543,32 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
             const totalFinal = canjearVisitaGratis ? 0 : Math.max(0, montoNum - adelantoNum);
             return (
               <div className="mb-4 p-3 bg-[#00C288]/5 rounded-xl border border-[#00C288]/10 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-400">Monto servicios</span>
-                  <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {montoNum.toFixed(2)}</span>
-                </div>
+                {(() => {
+                  const totalServicios = servicios.filter(s => selectedServicios.has(s.id)).reduce((sum, s) => sum + s.precio_base, 0);
+                  const totalProds = productosRecetados.filter(p => selectedProductos.has(p.id)).reduce((sum, p) => sum + p.precio, 0);
+                  return (
+                    <>
+                      {totalServicios > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-400">Servicios ({selectedServicios.size})</span>
+                          <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {totalServicios.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {totalProds > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-purple-500">Productos recetados ({selectedProductos.size})</span>
+                          <span className="text-sm font-bold text-purple-600 tabular-nums">S/ {totalProds.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {montoManual && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-400">Monto total</span>
+                          <span className="text-sm font-bold text-gray-600 tabular-nums">S/ {montoNum.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 {canjearVisitaGratis && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[#00C288]">🎁 Visita gratis (sellos canjeados)</span>
@@ -512,7 +592,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-bold shadow-sm"
+              className="px-4 py-2.5 text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-bold shadow-sm text-sm"
             >
               Cancelar
             </button>
@@ -520,7 +600,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               type="submit"
               form="cobro-form"
               disabled={isSubmitting}
-              className="px-8 py-3 bg-[#00C288] disabled:opacity-70 disabled:cursor-not-allowed text-white font-black rounded-xl hover:bg-[#00ab78] transition-all shadow-md flex items-center justify-center gap-2 min-w-[190px]"
+              className="px-5 py-2.5 bg-[#00C288] disabled:opacity-70 disabled:cursor-not-allowed text-white font-black rounded-xl hover:bg-[#00ab78] transition-all shadow-md flex items-center justify-center gap-2 text-sm"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

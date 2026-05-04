@@ -83,12 +83,12 @@ export function UsuariosPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-secondary tracking-tight">Gestión de Usuarios</h1>
+          <h1 className="text-3xl font-bold text-secondary tracking-tight">Gestión de Usuarios</h1>
           <p className="text-gray-500 mt-1">Administra el acceso, roles y sucursales de tu equipo</p>
         </div>
         <button
           onClick={() => { setUsuarioToEdit(null); setIsDrawerOpen(true); }}
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold shadow-sm"
+          className="flex items-center justify-center gap-2 bg-primary text-white px-3 py-2 md:px-5 md:py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold text-xs md:text-sm shadow-sm"
         >
           <Plus className="w-5 h-5" />
           Nuevo Usuario

@@ -45,7 +45,7 @@ export function EspecialistasPage() {
     if (exportEstadoFilter === 'inactivo') query = query.eq('estado', false);
     const { data, error } = await query;
     if (error || !data) return [];
-    return data as any;
+    return data as Especialista[];
   };
 
   const fetchEspecialistas = async () => {
@@ -64,7 +64,7 @@ export function EspecialistasPage() {
       
       const { data, error } = await query;
       if (error) throw error;
-      setEspecialistas(data as any || []);
+      setEspecialistas(data as Especialista[] || []);
     } catch (err) {
       console.error('Error fetching especialistas:', err);
       toast.error('Error al cargar los especialistas');
@@ -82,14 +82,14 @@ export function EspecialistasPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-secondary tracking-tight">Directorio de Personal</h1>
+          <h1 className="text-3xl font-bold text-secondary tracking-tight">Directorio de Personal</h1>
           <p className="text-gray-500 mt-1">Gestión de especialistas y colores de agenda</p>
         </div>
         <div className="flex items-center gap-3">
           {isDueno && (
             <button
               onClick={() => setIsExportOpen(true)}
-              className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+              className="bg-white hover:bg-gray-50 text-[#004975] px-3 py-2 md:px-4 md:py-2.5 rounded-xl flex items-center gap-1.5 font-bold text-xs md:text-sm border border-gray-200 shadow-sm transition-colors"
             >
               <Download className="w-4 h-4" />
               Exportar
@@ -97,7 +97,7 @@ export function EspecialistasPage() {
           )}
           <button
             onClick={() => { setEspecialistaToEdit(null); setIsDrawerOpen(true); }}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold shadow-sm"
+            className="flex items-center gap-1.5 bg-primary text-white px-3 py-2 md:px-5 md:py-2.5 rounded-xl hover:bg-[#00ab78] transition-colors font-semibold text-xs md:text-sm shadow-sm"
           >
             <Plus className="w-5 h-5" />
             Nuevo Especialista

@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CobroDrawer } from './CobroDrawer';
-import { TicketPrint } from './TicketPrint';
+import { TicketPrint, type TicketData } from './TicketPrint';
 import { ExportModal } from '../../../components/ExportModal';
 import { useAuthStore } from '../../../stores/authStore';
 import type { CsvColumn } from '../../../lib/exportCsv';
@@ -21,7 +21,7 @@ export function CobrosPendientesTab() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [citaSeleccionada, setCitaSeleccionada] = useState<CitaCaja | null>(null);
   const [ticketOpen, setTicketOpen] = useState(false);
-  const [ticketData, setTicketData] = useState<any>(null);
+  const [ticketData, setTicketData] = useState<TicketData | null>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportDesde, setExportDesde] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [exportHasta, setExportHasta] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -105,22 +105,24 @@ export function CobrosPendientesTab() {
 
     if (!citasData) return [];
 
-    const citaIds = citasData.map((c: any) => c.id);
+    const citaIds = citasData.map((c: { id: string }) => c.id);
     const { data: pagosData } = await supabase
       .from('pagos')
       .select('cita_id, monto_total, metodo_pago, estado, numero_ticket')
       .in('cita_id', citaIds);
 
-    const pagosMap = new Map((pagosData || []).map((p: any) => [p.cita_id, p]));
+    const pagosMap = new Map((pagosData || []).map((p: { cita_id: string; monto_total: number; metodo_pago: string; estado: string; numero_ticket?: number }) => [p.cita_id, p]));
 
-    const rows: CobroExportRow[] = citasData.map((c: any) => {
-      const pago = pagosMap.get(c.id) as any;
+    const rows: CobroExportRow[] = citasData.map((c) => {
+      const pago = pagosMap.get(c.id);
+      const pac = c.pacientes as unknown as { nombres: string; apellidos: string; numero_documento: string | null };
+      const pod = c.podologos as unknown as { nombres: string } | null;
       return {
         fecha: c.fecha_cita,
         hora: formatearHora(c.hora_cita),
-        paciente: `${c.pacientes.nombres} ${c.pacientes.apellidos}`,
-        documento: c.pacientes.numero_documento || '',
-        especialista: c.podologos?.nombres || '',
+        paciente: `${pac.nombres} ${pac.apellidos}`,
+        documento: pac.numero_documento || '',
+        especialista: pod?.nombres || '',
         estado_cita: c.estado,
         monto: pago ? `S/ ${Number(pago.monto_total).toFixed(2)}` : '',
         metodo_pago: pago?.metodo_pago || '',
@@ -161,11 +163,12 @@ export function CobrosPendientesTab() {
           color_etiqueta
         )
       `)
-      .gte('fecha_cita', fechaDesde)
-      .lte('fecha_cita', fechaHasta)
       .not('estado', 'in', '("Cancelada","No Asistió")')
       .order('fecha_cita', { ascending: true })
       .order('hora_cita', { ascending: true });
+
+    if (fechaDesde) citasQuery = citasQuery.gte('fecha_cita', fechaDesde);
+    if (fechaHasta) citasQuery = citasQuery.lte('fecha_cita', fechaHasta);
 
     if (sucursalActiva?.id) {
       citasQuery = citasQuery.eq('sucursal_id', sucursalActiva.id);
@@ -219,17 +222,18 @@ export function CobrosPendientesTab() {
   };
 
   const handlePrintTicket = async (cita: CitaCaja, pago: PagoRegistrado) => {
-    // Fetch servicios de la atención vinculada para listar en ticket
-    let serviciosTicket: { nombre: string; precio: number }[] = [];
+    let ticketItems: { nombre: string; precio: number; cantidad?: number; tipo?: 'servicio' | 'producto' }[] = [];
+
     const { data: atencionData } = await supabase
       .from('atenciones')
-      .select('tratamientos_realizados')
+      .select('tratamientos_realizados, medicamentos_recetados')
       .eq('cita_id', cita.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (atencionData?.tratamientos_realizados && Array.isArray(atencionData.tratamientos_realizados)) {
+    // Servicios realizados
+    if (atencionData?.tratamientos_realizados?.length) {
       const { data: serviciosData } = await supabase
         .from('servicios')
         .select('nombre, precio_base')
@@ -237,13 +241,25 @@ export function CobrosPendientesTab() {
         .in('nombre', atencionData.tratamientos_realizados);
 
       if (serviciosData) {
-        serviciosTicket = serviciosData.map(s => ({ nombre: s.nombre, precio: s.precio_base }));
+        ticketItems.push(...serviciosData.map(s => ({ nombre: s.nombre, precio: s.precio_base, tipo: 'servicio' as const })));
       }
     }
 
-    // Fallback: si no hay servicios vinculados, mostrar genérico
-    if (serviciosTicket.length === 0) {
-      serviciosTicket = [{ nombre: 'Servicio Podológico', precio: pago.monto_total }];
+    // Productos medicados comprados
+    if (atencionData?.medicamentos_recetados?.length) {
+      const { data: prodsData } = await supabase
+        .from('productos')
+        .select('nombre, precio')
+        .eq('sucursal_id', sucursalActiva?.id)
+        .in('nombre', atencionData.medicamentos_recetados);
+
+      if (prodsData) {
+        ticketItems.push(...prodsData.map(p => ({ nombre: p.nombre, precio: p.precio, tipo: 'producto' as const })));
+      }
+    }
+
+    if (ticketItems.length === 0) {
+      ticketItems = [{ nombre: 'Servicio Podológico', precio: pago.monto_total }];
     }
 
     setTicketData({
@@ -252,7 +268,7 @@ export function CobrosPendientesTab() {
       pacienteDocumento: cita.pacientes.numero_documento,
       pacienteTelefono: cita.pacientes.telefono,
       fechaPago: pago.fecha_pago || new Date().toISOString(),
-      servicios: serviciosTicket,
+      servicios: ticketItems,
       montoTotal: pago.monto_total,
       metodoPago: pago.metodo_pago,
       codigoReferencia: pago.codigo_referencia,
@@ -322,12 +338,12 @@ export function CobrosPendientesTab() {
             <div className="flex items-center gap-1.5">
               <DatePicker value={fechaDesde} onChange={(v) => {
                 setFechaDesde(v);
-                if (v > fechaHasta) setFechaHasta(v);
+                if (v && fechaHasta && v > fechaHasta) setFechaHasta(v);
               }} />
               <span className="text-xs font-bold text-gray-400">a</span>
               <DatePicker value={fechaHasta} onChange={(v) => {
                 setFechaHasta(v);
-                if (v < fechaDesde) setFechaDesde(v);
+                if (v && fechaDesde && v < fechaDesde) setFechaDesde(v);
               }} />
             </div>
           </div>
@@ -343,9 +359,9 @@ export function CobrosPendientesTab() {
         {isDueno && (
           <button
             onClick={() => setIsExportOpen(true)}
-            className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors"
+            className="bg-white hover:bg-gray-50 text-[#004975] px-3 py-2 rounded-xl flex items-center gap-1.5 font-bold text-xs border border-gray-200 shadow-sm transition-colors"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             Exportar Cobros
           </button>
         )}
@@ -441,12 +457,20 @@ export function CobrosPendientesTab() {
             <div className="w-10 h-10 bg-[#004975]/5 rounded-xl flex items-center justify-center">
               <Calendar className="w-5 h-5 text-[#004975]" />
             </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">{isRangeToday ? 'Hoy' : 'Período'}</span>
+            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">
+              {!fechaDesde && !fechaHasta ? 'Histórico' : isRangeToday ? 'Hoy' : 'Período'}
+            </span>
           </div>
           <p className="text-xs font-bold text-[#004975] capitalize">
-            {fechaDesde === fechaHasta
-              ? format(new Date(fechaDesde + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })
-              : `${format(new Date(fechaDesde + 'T12:00:00'), "d MMM", { locale: es })} — ${format(new Date(fechaHasta + 'T12:00:00'), "d MMM yyyy", { locale: es })}`}
+            {!fechaDesde && !fechaHasta
+              ? 'Todos los registros'
+              : !fechaDesde
+                ? `Hasta ${format(new Date(fechaHasta + 'T12:00:00'), "d MMM yyyy", { locale: es })}`
+                : !fechaHasta
+                  ? `Desde ${format(new Date(fechaDesde + 'T12:00:00'), "d MMM yyyy", { locale: es })}`
+                  : fechaDesde === fechaHasta
+                    ? format(new Date(fechaDesde + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })
+                    : `${format(new Date(fechaDesde + 'T12:00:00'), "d MMM", { locale: es })} — ${format(new Date(fechaHasta + 'T12:00:00'), "d MMM yyyy", { locale: es })}`}
           </p>
         </div>
 

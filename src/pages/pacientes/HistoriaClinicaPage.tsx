@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer, ShoppingCart, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import type { Paciente, Atencion } from '../../types/entities';
+import type { Paciente, Atencion, Venta, VentaItem } from '../../types/entities';
 import { AtencionDrawer } from './components/AtencionDrawer';
 import { StampCard } from '../../components/StampCard';
 import { format } from 'date-fns';
@@ -26,7 +26,7 @@ export function HistoriaClinicaPage() {
   const [selectedAtencion, setSelectedAtencion] = useState<Atencion | null>(null);
   const [selectedImage, setSelectedImage] = useState<{url: string, atencion: Atencion} | null>(null);
   const [activeTab, setActiveTab] = useState<'historial' | 'compras'>('historial');
-  const [ventas, setVentas] = useState<any[]>([]);
+  const [ventas, setVentas] = useState<Venta[]>([]);
   const [ventasLoading, setVentasLoading] = useState(false);
   const [printAtencionId, setPrintAtencionId] = useState<string | null>(null);
 
@@ -510,11 +510,11 @@ export function HistoriaClinicaPage() {
                 </div>
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total Gastado</span>
-                  <p className="text-xl font-black text-[#00C288] tabular-nums mt-1">S/ {ventas.reduce((s: number, v: any) => s + v.total, 0).toFixed(2)}</p>
+                  <p className="text-xl font-black text-[#00C288] tabular-nums mt-1">S/ {ventas.reduce((s: number, v: Venta) => s + v.total, 0).toFixed(2)}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Productos Comprados</span>
-                  <p className="text-xl font-black text-[#004975] tabular-nums mt-1">{ventas.reduce((s: number, v: any) => s + (v.items || []).reduce((a: number, i: any) => a + i.cantidad, 0), 0)}</p>
+                  <p className="text-xl font-black text-[#004975] tabular-nums mt-1">{ventas.reduce((s: number, v: Venta) => s + (v.items || []).reduce((a: number, i: VentaItem) => a + i.cantidad, 0), 0)}</p>
                 </div>
               </div>
 
@@ -530,7 +530,7 @@ export function HistoriaClinicaPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ventas.map((venta: any, index: number) => (
+                    {ventas.map((venta: Venta, index: number) => (
                       <tr key={venta.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                         <td className="px-5 py-3.5">
                           <p className="font-bold text-[#004975] text-sm">{format(new Date(venta.created_at), "d MMM yyyy", { locale: es })}</p>
@@ -538,7 +538,7 @@ export function HistoriaClinicaPage() {
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex flex-wrap gap-1">
-                            {(venta.items || []).map((item: any, i: number) => (
+                            {(venta.items || []).map((item: VentaItem, i: number) => (
                               <span key={i} className="bg-[#00C288]/10 text-[#004975] border border-[#00C288]/20 px-2 py-0.5 rounded text-[11px] font-bold">
                                 <Package className="w-3 h-3 inline mr-1" />{item.nombre} ×{item.cantidad}
                               </span>

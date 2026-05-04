@@ -14,7 +14,7 @@ export function exportToCsv<T>(rows: T[], columns: CsvColumn<T>[], filename: str
     columns.map(col => {
       const value = col.format
         ? col.format(row)
-        : getNestedValue(row, col.key);
+        : getNestedValue(row as Record<string, unknown>, col.key);
       return escapeCsvField(String(value ?? ''));
     }).join(separator)
   );
@@ -37,6 +37,6 @@ function escapeCsvField(value: string): string {
   return value;
 }
 
-function getNestedValue(obj: any, path: string): any {
-  return path.split('.').reduce((acc, key) => acc?.[key], obj);
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((acc, key) => (acc as Record<string, unknown>)?.[key], obj);
 }
