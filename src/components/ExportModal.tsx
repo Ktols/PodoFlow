@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { X, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
-import { exportToCsv, type CsvColumn } from '../lib/exportCsv';
+import { exportToExcel, type CsvColumn } from '../lib/exportCsv';
 import { toast } from 'react-hot-toast';
 
 interface ExportModalProps<T> {
@@ -55,14 +55,16 @@ export function ExportModal<T>({ isOpen, onClose, title, columns, fetchData, fil
         exportData = await fetchData();
       } catch (err) {
         console.error('Error fetching export data:', err);
-      toast.error('Error al obtener los datos para exportar');
+        toast.error('Error al obtener los datos para exportar');
         return;
       } finally {
         setIsLoading(false);
       }
     }
     if (exportData.length === 0) return;
-    exportToCsv(exportData, columns, filename);
+    
+    // Exportar usando ExcelJS
+    await exportToExcel(exportData, columns, filename, title);
     onClose();
   };
 
@@ -80,7 +82,7 @@ export function ExportModal<T>({ isOpen, onClose, title, columns, fetchData, fil
             </div>
             <div>
               <h3 className="text-lg font-black text-[#004975]">{title}</h3>
-              <p className="text-xs font-bold text-gray-400">Exportar datos a CSV</p>
+              <p className="text-xs font-bold text-gray-400">Exportar datos a Excel</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
@@ -139,10 +141,10 @@ export function ExportModal<T>({ isOpen, onClose, title, columns, fetchData, fil
             <button
               onClick={handleExport}
               disabled={isLoading}
-              className="flex-1 py-3 bg-[#00C288] hover:bg-[#00ab78] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-sm transition-all shadow-md flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-[#107c41] hover:bg-[#0c6b37] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-sm transition-all shadow-md flex items-center justify-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Exportar CSV
+              Exportar Excel
             </button>
           </div>
         </div>

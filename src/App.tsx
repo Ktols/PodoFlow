@@ -6,6 +6,7 @@ import { PacientesPage } from './pages/pacientes/PacientesPage';
 import { HistoriaClinicaPage } from './pages/pacientes/HistoriaClinicaPage';
 import { EspecialistasPage } from './pages/especialistas/EspecialistasPage';
 import { CajaPage } from './pages/caja/CajaPage';
+import { ReportesPage } from './pages/reportes/ReportesPage';
 import { TiendaPage } from './pages/configuracion/TiendaPage';
 import { UsuariosPage } from './pages/configuracion/UsuariosPage';
 import { ServiciosPage } from './pages/configuracion/ServiciosPage';
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="pacientes/:id/historia" element={<HistoriaClinicaPage />} />
                 <Route path="especialistas" element={<EspecialistasPage />} />
                 <Route path="caja" element={<CajaPage />} />
+                <Route path="reportes" element={<ReportesPage />} />
                 <Route path="tienda" element={<TiendaPage />} />
                 <Route path="usuarios" element={<UsuariosPage />} />
                 <Route path="servicios" element={<ServiciosPage />} />

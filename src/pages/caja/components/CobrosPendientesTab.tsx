@@ -76,6 +76,7 @@ export function CobrosPendientesTab() {
     estado_cita: string;
     monto: string;
     metodo_pago: string;
+    operacion: string;
     estado_pago: string;
     ticket: string;
   }
@@ -87,8 +88,9 @@ export function CobrosPendientesTab() {
     { key: 'documento', header: 'Documento' },
     { key: 'especialista', header: 'Especialista' },
     { key: 'estado_cita', header: 'Estado Cita' },
-    { key: 'monto', header: 'Monto' },
+    { key: 'monto', header: 'Monto Total' },
     { key: 'metodo_pago', header: 'Método Pago' },
+    { key: 'operacion', header: 'Nro. Operación' },
     { key: 'estado_pago', header: 'Estado Pago' },
     { key: 'ticket', header: 'Nro. Ticket' },
   ];
@@ -108,15 +110,29 @@ export function CobrosPendientesTab() {
     const citaIds = citasData.map((c: { id: string }) => c.id);
     const { data: pagosData } = await supabase
       .from('pagos')
-      .select('cita_id, monto_total, metodo_pago, estado, numero_ticket')
+      .select('id, cita_id, monto_total, metodo_pago, estado, numero_ticket, codigo_referencia')
       .in('cita_id', citaIds);
 
-    const pagosMap = new Map((pagosData || []).map((p: { cita_id: string; monto_total: number; metodo_pago: string; estado: string; numero_ticket?: number }) => [p.cita_id, p]));
+    const pagosIds = (pagosData || []).map(p => p.id);
+    let ventasMap = new Map();
+    if (pagosIds.length > 0) {
+      const { data: ventasData } = await supabase
+        .from('ventas')
+        .select('codigo_referencia, total')
+        .in('codigo_referencia', pagosIds);
+      ventasMap = new Map((ventasData || []).map(v => [v.codigo_referencia, v.total]));
+    }
+
+    const pagosMap = new Map((pagosData || []).map((p: any) => [p.cita_id, p]));
 
     const rows: CobroExportRow[] = citasData.map((c) => {
       const pago = pagosMap.get(c.id);
       const pac = c.pacientes as unknown as { nombres: string; apellidos: string; numero_documento: string | null };
       const pod = c.podologos as unknown as { nombres: string } | null;
+      
+      const ventaTotal = pago ? (ventasMap.get(pago.id) || 0) : 0;
+      const totalFinal = pago ? Number(pago.monto_total) + Number(ventaTotal) : 0;
+
       return {
         fecha: c.fecha_cita,
         hora: formatearHora(c.hora_cita),
@@ -124,8 +140,9 @@ export function CobrosPendientesTab() {
         documento: pac.numero_documento || '',
         especialista: pod?.nombres || '',
         estado_cita: c.estado,
-        monto: pago ? `S/ ${Number(pago.monto_total).toFixed(2)}` : '',
+        monto: pago ? `S/ ${totalFinal.toFixed(2)}` : '',
         metodo_pago: pago?.metodo_pago || '',
+        operacion: pago?.codigo_referencia || '',
         estado_pago: pago ? 'Pagado' : 'Pendiente',
         ticket: pago?.numero_ticket ? `TKT-${String(pago.numero_ticket).padStart(6, '0')}` : '',
       };
@@ -245,16 +262,35 @@ export function CobrosPendientesTab() {
       }
     }
 
-    // Productos medicados comprados
-    if (atencionData?.medicamentos_recetados?.length) {
-      const { data: prodsData } = await supabase
-        .from('productos')
-        .select('nombre, precio')
-        .eq('sucursal_id', sucursalActiva?.id)
-        .in('nombre', atencionData.medicamentos_recetados);
+    // Productos vinculados desde ventas (la venta generada por CobroDrawer usa el ID del pago en codigo_referencia)
+    let montoVentaRelacionada = 0;
+    const { data: ventaData } = await supabase
+      .from('ventas')
+      .select('items, total')
+      .eq('codigo_referencia', pago.id)
+      .limit(1)
+      .maybeSingle();
 
-      if (prodsData) {
-        ticketItems.push(...prodsData.map(p => ({ nombre: p.nombre, precio: p.precio, tipo: 'producto' as const })));
+    if (ventaData && Array.isArray(ventaData.items)) {
+      ticketItems.push(...ventaData.items.map((i: any) => ({
+        nombre: i.nombre,
+        precio: i.precio_unitario,
+        cantidad: i.cantidad,
+        tipo: 'producto' as const
+      })));
+      montoVentaRelacionada = ventaData.total || 0;
+    } else {
+      // Fallback a medicamentos_recetados solo por compatibilidad de tickets viejos
+      if (atencionData?.medicamentos_recetados?.length) {
+        const { data: prodsData } = await supabase
+          .from('productos')
+          .select('nombre, precio')
+          .eq('sucursal_id', sucursalActiva?.id)
+          .in('nombre', atencionData.medicamentos_recetados);
+
+        if (prodsData) {
+          ticketItems.push(...prodsData.map(p => ({ nombre: p.nombre, precio: p.precio, tipo: 'producto' as const })));
+        }
       }
     }
 
@@ -269,7 +305,7 @@ export function CobrosPendientesTab() {
       pacienteTelefono: cita.pacientes.telefono,
       fechaPago: pago.fecha_pago || new Date().toISOString(),
       servicios: ticketItems,
-      montoTotal: pago.monto_total,
+      montoTotal: pago.monto_total + montoVentaRelacionada,
       metodoPago: pago.metodo_pago,
       codigoReferencia: pago.codigo_referencia,
       especialista: cita.podologos?.nombres,
