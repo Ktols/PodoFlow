@@ -7,18 +7,20 @@ import { toast } from 'react-hot-toast';
 import { useReactToPrint } from 'react-to-print';
 import { useBranchStore } from '../../../stores/branchStore';
 
-interface ServicioTicket {
+interface TicketItem {
   nombre: string;
   precio: number;
+  cantidad?: number;
+  tipo?: 'servicio' | 'producto';
 }
 
-interface TicketData {
+export interface TicketData {
   numeroTicket?: number;
   pacienteNombre: string;
   pacienteDocumento?: string | null;
   pacienteTelefono?: string | null;
   fechaPago: string;
-  servicios: ServicioTicket[];
+  servicios: TicketItem[];
   montoTotal: number;
   metodoPago: string;
   codigoReferencia?: string;
@@ -89,7 +91,7 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
     }
   })();
 
-  const subtotal = data.servicios.reduce((s, srv) => s + srv.precio, 0);
+  const subtotal = data.servicios.reduce((s, srv) => s + srv.precio * (srv.cantidad || 1), 0);
 
   const handleShareWhatsApp = async () => {
     if (!comprobanteRef.current) return;
@@ -177,12 +179,12 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
         }
       `}</style>
 
-      <div className="fixed inset-0 z-[99999] print:static print:block">
+      <div className="fixed inset-0 z-[99999] !m-0 print:static print:block">
         {/* Backdrop */}
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm print:hidden" onClick={onClose} />
 
         {/* Panel */}
-        <div className="absolute right-0 top-0 h-full w-full md:w-[680px] bg-gray-100 shadow-2xl z-[100000] flex flex-col animate-in slide-in-from-right print:static print:w-full print:h-auto print:shadow-none print:bg-white print:block">
+        <div className="absolute right-0 inset-y-0 w-full md:w-[680px] bg-gray-100 shadow-2xl z-[100000] flex flex-col animate-in slide-in-from-right print:static print:w-full print:h-auto print:shadow-none print:bg-white print:block">
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 print:hidden">
             <h2 className="text-lg font-black text-[#004975]">Comprobante de Pago</h2>
@@ -249,22 +251,30 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                   <thead>
                     <tr className="border-b-2 border-gray-200">
                       <th className="text-left py-2.5 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]" style={{ width: '10%' }}>N°</th>
-                      <th className="text-left py-2.5 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">Servicio</th>
+                      <th className="text-left py-2.5 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">Detalle</th>
                       <th className="text-center py-2.5 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]" style={{ width: '12%' }}>Cant.</th>
                       <th className="text-right py-2.5 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]" style={{ width: '22%' }}>P. Unit.</th>
                       <th className="text-right py-2.5 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]" style={{ width: '22%' }}>Total (S/)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.servicios.map((srv, idx) => (
-                      <tr key={idx} className="border-b border-gray-100">
-                        <td className="py-2.5 text-xs font-bold text-gray-400 tabular-nums">{String(idx + 1).padStart(2, '0')}</td>
-                        <td className="py-2.5 text-xs font-bold text-gray-700">{srv.nombre}</td>
-                        <td className="py-2.5 text-xs font-bold text-gray-500 text-center tabular-nums">1</td>
-                        <td className="py-2.5 text-xs font-bold text-gray-500 text-right tabular-nums">S/ {srv.precio.toFixed(2)}</td>
-                        <td className="py-2.5 text-xs font-black text-[#004975] text-right tabular-nums">S/ {srv.precio.toFixed(2)}</td>
-                      </tr>
-                    ))}
+                    {data.servicios.map((srv, idx) => {
+                      const cant = srv.cantidad || 1;
+                      return (
+                        <tr key={idx} className="border-b border-gray-100">
+                          <td className="py-2.5 text-xs font-bold text-gray-400 tabular-nums">{String(idx + 1).padStart(2, '0')}</td>
+                          <td className="py-2.5 text-xs font-bold text-gray-700">
+                            {srv.nombre}
+                            {srv.tipo === 'producto' && (
+                              <span className="ml-1.5 text-[9px] font-bold text-purple-500 bg-purple-50 px-1 py-0.5 rounded">Producto</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 text-xs font-bold text-gray-500 text-center tabular-nums">{cant}</td>
+                          <td className="py-2.5 text-xs font-bold text-gray-500 text-right tabular-nums">S/ {srv.precio.toFixed(2)}</td>
+                          <td className="py-2.5 text-xs font-black text-[#004975] text-right tabular-nums">S/ {(srv.precio * cant).toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
 

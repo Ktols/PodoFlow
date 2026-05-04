@@ -30,7 +30,15 @@ interface UsuarioDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  usuario: any | null;
+  usuario: {
+    id: string;
+    nombres: string;
+    apellidos: string;
+    email: string;
+    telefono: string | null;
+    activo: boolean;
+    role_id: string | null;
+  } | null;
 }
 
 export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDrawerProps) {
@@ -78,7 +86,7 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
           .select('sucursal_id')
           .eq('usuario_id', usuario.id);
         if (data) {
-          setSelectedSucursales(new Set(data.map((d: any) => d.sucursal_id)));
+          setSelectedSucursales(new Set(data.map((d: { sucursal_id: string }) => d.sucursal_id)));
         }
       };
       fetchAssignments();
@@ -201,8 +209,8 @@ export function UsuarioDrawer({ isOpen, onClose, onSuccess, usuario }: UsuarioDr
 
       onSuccess();
       onClose();
-    } catch (err: any) {
-      toast.error(err?.message || 'Error al guardar el usuario');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el usuario');
     }
   };
 

@@ -123,13 +123,13 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
           onFocus={openPicker}
           onClick={openPicker}
           placeholder={placeholder}
-          className={`w-full pl-10 pr-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-bold outline-none transition-all placeholder:text-gray-300 ${
+          className={`w-full pl-8 pr-7 py-2 md:pl-10 md:pr-3 md:py-2.5 bg-gray-50 border rounded-xl text-xs md:text-sm font-bold outline-none transition-all placeholder:text-gray-300 ${
             isInvalid 
               ? 'border-red-500 text-red-600 focus:ring-red-500 bg-red-50' 
               : 'border-gray-200 text-[#004975] focus:ring-2 focus:ring-[#00C288] focus:bg-white'
           }`}
         />
-        <CalendarIcon className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${
+        <CalendarIcon className={`w-3.5 h-3.5 md:w-4 md:h-4 absolute left-2.5 md:left-3.5 top-1/2 -translate-y-1/2 transition-colors ${
           isInvalid ? 'text-red-400' : 'text-gray-400 group-focus-within:text-[#00C288]'
         }`} />
         {inputValue && (

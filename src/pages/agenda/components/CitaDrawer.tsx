@@ -8,11 +8,12 @@ import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { CitaList } from '../../../types/entities';
+import type { CitaList, Paciente } from '../../../types/entities';
 import { useBranchStore } from '../../../stores/branchStore';
 import type { AtencionRow } from '../../../types/agenda';
 import { TIME_OPTIONS } from '../../../constants';
 import { DatePicker } from '../../../components/DatePicker';
+import { PaymentMethodPicker } from '../../../components/PaymentMethodPicker';
 
 interface PacienteMin {
   id: string;
@@ -90,11 +91,13 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const [showResults, setShowResults] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
+  const [adelantoReferencia, setAdelantoReferencia] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // useWatch en lugar de watch() → re-render aislado por campo (sub-usewatch-over-watch)
   const selectedPacienteId = useWatch({ control, name: 'paciente_id', defaultValue: '' });
   const watchedFechaCita = useWatch({ control, name: 'fecha_cita', defaultValue: '' });
+  const watchedAdelantoMetodo = useWatch({ control, name: 'adelanto_metodo_pago', defaultValue: '' });
   const selectedPaciente = pacientes.find(p => p.id === selectedPacienteId);
 
   // Fetch patient history when selected
@@ -156,7 +159,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
     }
   }, [watchedFechaCita, isOpen, citaEnEdicion, setValue]);
 
-  const handleNewPatientCreated = (newPatientData: any) => {
+  const handleNewPatientCreated = (newPatientData: Paciente) => {
     // Add to pacientes list so it resolves selectedPaciente correctly
     setPacientes([{
       id: newPatientData.id,
@@ -213,6 +216,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
       }
       setSearchTerm('');
       setValidationError(null);
+      setAdelantoReferencia('');
 
       const fetchPodologos = async () => {
         if (!sucursalActiva?.id) return;
@@ -221,7 +225,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           .select('id, nombres, especialidad, color_etiqueta, sucursal_podologos!inner(sucursal_id)')
           .eq('sucursal_podologos.sucursal_id', sucursalActiva.id)
           .eq('estado', true);
-        if (data) setPodologos(data as any);
+        if (data) setPodologos(data as PodologoMin[]);
       };
       const fetchServicios = async () => {
         if (!sucursalActiva?.id) return;
@@ -354,10 +358,10 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
 
   return (
     <>
-      <div className="fixed inset-0 z-[9999]">
+      <div className="fixed inset-0 z-[9999] !m-0">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity animate-in fade-in" onClick={onClose} />
 
-        <div className="absolute right-0 top-0 h-full w-full md:w-[500px] lg:max-w-lg bg-white shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
+        <div className="absolute right-0 inset-y-0 w-full md:w-[500px] lg:max-w-lg bg-white shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col animate-in slide-in-from-right">
           <div className="flex items-center justify-between p-6 border-b border-gray-100">
             <h2 className="text-xl font-black text-[#004975]">{citaEnEdicion ? 'Editar Turno' : 'Nuevo Turno Agenda'}</h2>
             <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors group">
@@ -661,44 +665,35 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                   <DollarSign className="w-4 h-4 text-[#00C288]" />
                   Pago Adelantado (opcional)
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">Monto (S/)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] tabular-nums shadow-sm"
-                      {...register('adelanto')}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">Método de Pago</label>
-                    <select
-                      className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] shadow-sm"
-                      {...register('adelanto_metodo_pago')}
-                    >
-                      <option value="">Seleccione...</option>
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Yape">Yape</option>
-                      <option value="Plin">Plin</option>
-                      <option value="Tarjeta">Tarjeta</option>
-                      <option value="Transferencia">Transferencia</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 mb-1.5">Monto (S/)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="w-full border border-gray-200 bg-white rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-[#00C288] tabular-nums shadow-sm"
+                    {...register('adelanto')}
+                  />
                 </div>
+                <PaymentMethodPicker
+                  compact
+                  value={watchedAdelantoMetodo || ''}
+                  onChange={(v) => setValue('adelanto_metodo_pago', v)}
+                  referencia={adelantoReferencia}
+                  onReferenciaChange={setAdelantoReferencia}
+                />
                 <p className="text-[10px] font-bold text-[#00C288]/70">Si el paciente realiza un pago por adelantado, se descontará del total al momento del cobro.</p>
               </div>
 
             </form>
           </div>
 
-          <div className="p-6 border-t border-gray-100 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.02)] flex justify-end gap-3 rounded-bl-lg">
+          <div className="p-4 md:p-6 border-t border-gray-100 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.02)] flex justify-end gap-3 rounded-bl-lg">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-bold shadow-sm"
+              className="px-4 py-2.5 text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-bold shadow-sm text-sm"
             >
               Cancelar
             </button>
@@ -706,7 +701,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
               type="submit"
               form="cita-form"
               disabled={isSubmitting}
-              className="px-8 py-3 bg-[#00C288] disabled:opacity-70 disabled:cursor-not-allowed text-white font-black rounded-xl hover:bg-[#00ab78] transition-all shadow-md flex items-center justify-center min-w-[170px]"
+              className="px-5 py-2.5 bg-[#00C288] disabled:opacity-70 disabled:cursor-not-allowed text-white font-black rounded-xl hover:bg-[#00ab78] transition-all shadow-md flex items-center justify-center text-sm"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

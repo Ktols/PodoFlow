@@ -27,10 +27,17 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
-  const [podologosList, setPodologosList] = useState<any[]>([]);
+  const [podologosList, setPodologosList] = useState<{id: string, nombres: string, color_etiqueta: string}[]>([]);
   const [serviciosList, setServiciosList] = useState<{id: string, nombre: string, precio_base: number}[]>([]);
   const [productosList, setProductosList] = useState<{id: string, nombre: string}[]>([]);
-  const [antecedentes, setAntecedentes] = useState<any>(null);
+  const [antecedentes, setAntecedentes] = useState<{
+    diabetes?: boolean;
+    hipertension?: boolean;
+    enfermedad_vascular?: boolean;
+    tratamiento_oncologico?: boolean;
+    alergias_detalle?: string | null;
+    alergias_alertas?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const fetchPodologos = async () => {
@@ -144,7 +151,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
 
       const allPhotos = [...existingPhotos, ...uploadedUrls];
 
-      const dbData: any = {
+      const dbData: Record<string, unknown> = {
         paciente_id: pacienteId,
         motivo_consulta: data.motivo_consulta,
         diagnostico: data.diagnostico || '',
@@ -181,22 +188,21 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
 
       onSuccess?.();
       onClose();
-    } catch (err: any) {
+    } catch {
       toast.error('Ocurrió un error al guardar');
-      console.error(err);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-[9999] !m-0">
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       
-      <div className="absolute right-0 top-0 h-full w-full md:w-[500px] bg-background-container shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col">
+      <div className="absolute right-0 inset-y-0 w-full md:w-[500px] bg-background-container shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-secondary">
             {atencion ? 'Editar Atención Médica' : 'Registrar Nueva Atención'}
@@ -468,7 +474,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
             type="submit" 
             form="atencion-form"
             disabled={isSubmitting}
-            className="px-6 py-2.5 bg-primary disabled:opacity-70 disabled:cursor-not-allowed text-white font-medium rounded-lg hover:bg-[#00ab78] transition-colors shadow-md flex items-center justify-center min-w-[170px]"
+            className="px-5 py-2.5 bg-primary disabled:opacity-70 disabled:cursor-not-allowed text-white font-medium rounded-lg hover:bg-[#00ab78] transition-colors shadow-md flex items-center justify-center text-sm"
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

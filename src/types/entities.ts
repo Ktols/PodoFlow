@@ -109,6 +109,8 @@ export interface Venta {
   metodo_pago: string;
   estado: string;
   notas: string | null;
+  codigo_referencia: string | null;
+  numero_ticket: number | null;
   created_at: string;
   pacientes: { nombres: string; apellidos: string; numero_documento: string } | null;
 }
