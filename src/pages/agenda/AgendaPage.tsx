@@ -6,7 +6,8 @@ import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay, 
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { CitaDrawer } from './components/CitaDrawer';
-import { CitasListPanel, formatearHora } from './components/CitasListPanel';
+import { CitasListPanel } from './components/CitasListPanel';
+import { formatearHora } from '../../lib/formatters';
 import { ExportModal } from '../../components/ExportModal';
 import { useBranchStore } from '../../stores/branchStore';
 import { useAuthStore } from '../../stores/authStore';

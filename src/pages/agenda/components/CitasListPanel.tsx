@@ -10,27 +10,7 @@ import type { CitaList } from '../AgendaPage';
 import { CLINIC_INFO, SELLOS_PARA_GRATIS } from '@/config/clinicData';
 import { ESTADOS_MAP, ESTADOS_CITA_OPTIONS, ESTADOS_FINALES } from '@/types/agenda';
 import type { EstadoCita } from '@/types/agenda';
-
-// ── Helpers puros: sin dependencias de estado → nivel de módulo ──────────────
-export function formatearHora(horaFull: string): string {
-  if (!horaFull) return '';
-  const [hourStr, minStr] = horaFull.split(':');
-  const hour = parseInt(hourStr, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const h12 = hour % 12 || 12;
-  return `${String(h12).padStart(2, '0')}:${minStr} ${ampm}`;
-}
-
-export function formatPhone(phone: string | null): string | null {
-  if (!phone) return null;
-  const p = phone.replace(/\D/g, '');
-  if (p.length === 9) return `51${p}`;
-  return p;
-}
-
-// ── Constantes del módulo ────────────────────────────────────────────────────
-// ESTADOS_MAP y ESTADOS_CITA_OPTIONS provienen de @/types/agenda (fuente única de verdad)
-export { ESTADOS_MAP, ESTADOS_CITA_OPTIONS as ESTADOS_OPCIONES };
+import { formatearHora, formatPhone } from '@/lib/formatters';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 interface SucursalMin {
