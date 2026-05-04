@@ -191,7 +191,7 @@ export const CitasListPanel = React.memo(function CitasListPanel({
           return (
             <div
               key={cita.id}
-              className={`rounded-2xl border shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] p-5 lg:p-6 hover:shadow-lg transition-all relative overflow-hidden flex flex-col xl:flex-row gap-4 xl:gap-8 items-start xl:items-center ${
+              className={`rounded-2xl border shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] p-4 lg:p-6 hover:shadow-lg transition-all relative overflow-hidden flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-5 ${
                 esEstadoFinal
                   ? 'opacity-75 bg-gray-50 ' + style.border
                   : esTurnoFantasma
@@ -204,8 +204,10 @@ export const CitasListPanel = React.memo(function CitasListPanel({
               {/* Timeline Color bar */}
               <div className={`absolute left-0 inset-y-0 w-2.5 ${style.color.split(' ')[0]}`} />
 
+              {/* Fila 1: Hora + Paciente */}
+              <div className="flex flex-wrap items-center gap-3 lg:gap-5 flex-1 min-w-0">
               {/* Hora Analógica */}
-              <div className="flex flex-row items-center gap-3 ml-3 xl:w-36 shrink-0">
+              <div className="flex flex-row items-center gap-3 ml-3 shrink-0">
                 <div className={`p-2.5 rounded-xl ${style.color}`}>
                   <Clock className="w-6 h-6 border-transparent" />
                 </div>
@@ -235,7 +237,7 @@ export const CitasListPanel = React.memo(function CitasListPanel({
               </div>
 
               {/* Patient Context Bundle */}
-              <div className="flex-1 min-w-0 bg-gray-50/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+              <div className="flex-1 min-w-[220px] bg-gray-50/50 p-4 rounded-xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2.5 mb-2">
                   <User className="w-5 h-5 text-[#00C288]" />
                   <h4 className="text-lg font-black text-[#004975] truncate">
@@ -276,9 +278,11 @@ export const CitasListPanel = React.memo(function CitasListPanel({
                   </div>
                 )}
               </div>
+              </div>
 
-              {/* Acciones */}
-              <div className="flex items-center gap-3 shrink-0">
+              {/* Fila 2: Acciones + Estado */}
+              <div className="flex items-center gap-2 lg:gap-3 flex-wrap ml-3 lg:ml-0">
+              <div className="flex items-center gap-2 lg:gap-3 shrink-0">
                 <button
                   onClick={() => onEditCita(cita)}
                   disabled={esEstadoFinal}
@@ -320,7 +324,7 @@ export const CitasListPanel = React.memo(function CitasListPanel({
               </div>
 
               {/* Dropdown de Estado */}
-              <div className="relative shrink-0 w-full xl:w-56" onClick={e => e.stopPropagation()}>
+              <div className="relative shrink-0 w-full lg:w-48" onClick={e => e.stopPropagation()}>
                 <div
                   className={`relative rounded-xl border shadow-sm ${style.color} ${style.border} ${!esEstadoFinal ? 'transition-all hover:scale-[1.02]' : 'opacity-80'}`}
                 >
@@ -345,6 +349,7 @@ export const CitasListPanel = React.memo(function CitasListPanel({
                     <span className="text-xs opacity-70">▼</span>
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           );

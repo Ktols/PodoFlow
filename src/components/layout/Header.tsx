@@ -58,12 +58,12 @@ export function Header({ onMenuClick }: HeaderProps) {
               }`}
             >
               <Building2 className="w-5 h-5 text-primary" />
-              <div className="text-left">
-                <p className="text-sm font-semibold text-secondary leading-tight">
+              <div className="text-left min-w-0">
+                <p className="text-xs md:text-sm font-semibold text-secondary leading-tight truncate max-w-[30vw] sm:max-w-[180px] md:max-w-[250px]">
                   {sucursalActiva.nombre_comercial}
                 </p>
                 {sucursalActiva.direccion && (
-                  <p className="text-xs text-gray-400 leading-tight truncate max-w-[120px] md:max-w-[200px]">
+                  <p className="text-[10px] md:text-xs text-gray-400 leading-tight truncate max-w-[30vw] sm:max-w-[180px] md:max-w-[250px]">
                     {sucursalActiva.direccion}
                   </p>
                 )}
@@ -75,7 +75,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
             {/* Dropdown de sucursales */}
             {dropdownOpen && canSwitchBranch && (
-              <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-full left-0 mt-1 w-[calc(100vw-2rem)] sm:w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
                 <p className="px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Cambiar Sucursal
                 </p>
@@ -113,8 +113,8 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
 
       {/* Lado derecho: Notificaciones y Perfil */}
-      <div className="flex items-center gap-4">
-        <button className="p-2 text-gray-500 hover:text-primary transition-colors">
+      <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        <button className="p-1.5 md:p-2 text-gray-500 hover:text-primary transition-colors">
           <Bell className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-3 md:border-l md:pl-4 border-gray-200">

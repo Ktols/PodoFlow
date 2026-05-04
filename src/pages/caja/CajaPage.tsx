@@ -45,7 +45,7 @@ export function CajaPage() {
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 ${
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 md:px-5 md:py-2.5 rounded-xl text-[11px] md:text-sm font-black uppercase tracking-wider transition-all duration-200 ${
                 activeTab === tab.key
                   ? 'bg-[#004975] text-white shadow-lg shadow-[#004975]/20 scale-[1.02]'
                   : 'text-gray-400 hover:text-[#004975] hover:bg-gray-50'

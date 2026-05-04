@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Search, Download, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -35,6 +35,26 @@ export function AgendaPage() {
   const [isGlobalSearch, setIsGlobalSearch] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState<Date>(new Date());
+  const [visibleDays, setVisibleDays] = useState(7);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  const calcVisibleDays = useCallback(() => {
+    if (stripRef.current) {
+      const width = stripRef.current.offsetWidth;
+      const isMd = window.innerWidth >= 768;
+      const dayWidth = (isMd ? 68 : 60) + 6; // day width + gap
+      setVisibleDays(Math.max(1, Math.min(7, Math.floor(width / dayWidth))));
+    }
+  }, []);
+
+  useEffect(() => {
+    calcVisibleDays();
+    window.addEventListener('resize', calcVisibleDays);
+    return () => window.removeEventListener('resize', calcVisibleDays);
+  }, [calcVisibleDays]);
+
+  // Recalcular cuando cambia el layout (ej: action buttons aparecen/desaparecen)
+  useEffect(() => { calcVisibleDays(); }, [selectedDate, calcVisibleDays]);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
 
@@ -361,27 +381,28 @@ export function AgendaPage() {
           </div>
 
           {/* Week day strip */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <button
               onClick={() => setSelectedDate(subDays(selectedDate, 7))}
-              className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+              className="p-2 md:p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
               title="Semana Anterior"
             >
-              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-0.5 transition-transform" />
             </button>
 
-            <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide">
-              {Array.from({ length: 7 }, (_, i) => {
-                const day = addDays(startOfDay(selectedDate), i - 3);
+            <div ref={stripRef} className="flex flex-1 items-center gap-1.5 justify-center overflow-hidden">
+              {Array.from({ length: visibleDays }, (_, i) => {
+                const offset = Math.floor(visibleDays / 2);
+                const day = addDays(startOfDay(selectedDate), i - offset);
                 const isSelected = isSameDay(day, selectedDate);
                 const isToday = isSameDay(day, new Date());
                 return (
                   <button
                     key={day.toISOString()}
                     onClick={() => setSelectedDate(day)}
-                    className={`flex flex-col items-center flex-1 py-2 rounded-xl border transition-all min-w-[44px] ${
+                    className={`flex flex-col items-center w-[60px] md:w-[68px] shrink-0 py-2 rounded-xl border transition-all ${
                       isSelected
-                        ? 'bg-[#00C288] text-white border-[#00C288] shadow-md shadow-[#00C288]/20 scale-105'
+                        ? 'bg-[#00C288] text-white border-[#00C288] shadow-md shadow-[#00C288]/20'
                         : isToday
                           ? 'bg-white text-[#004975] border-[#00C288]/40 hover:border-[#00C288] hover:shadow-sm'
                           : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:shadow-sm'
@@ -403,7 +424,7 @@ export function AgendaPage() {
 
             <button
               onClick={() => setSelectedDate(addDays(selectedDate, 7))}
-              className="p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md hover:scale-105 rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
+              className="p-2 md:p-3 bg-white hover:bg-[#004975] hover:text-white hover:shadow-md rounded-xl border border-gray-200 transition-all text-gray-400 group shrink-0"
               title="Semana Siguiente"
             >
               <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />

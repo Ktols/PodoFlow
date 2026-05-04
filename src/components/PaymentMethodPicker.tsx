@@ -15,8 +15,6 @@ function getReferenciaLabel(metodo: string): { label: string; placeholder: strin
   }
 }
 
-export { getReferenciaLabel };
-
 interface PaymentMethodPickerProps {
   value: string;
   onChange: (metodo: string) => void;

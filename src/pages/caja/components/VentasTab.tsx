@@ -130,13 +130,13 @@ export function VentasTab() {
           <div className="flex items-center gap-3">
             {isDueno && (
               <button onClick={() => setIsExportOpen(true)}
-                className="bg-white hover:bg-gray-50 text-[#004975] px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold text-sm border border-gray-200 shadow-sm transition-colors">
-                <Download className="w-4 h-4" /> Exportar
+                className="bg-white hover:bg-gray-50 text-[#004975] px-3 py-2 rounded-xl flex items-center gap-1.5 font-bold text-xs border border-gray-200 shadow-sm transition-colors">
+                <Download className="w-3.5 h-3.5" /> Exportar
               </button>
             )}
             <button onClick={() => setIsDrawerOpen(true)}
-              className="bg-[#00C288] hover:bg-[#00ab78] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-black tracking-wide shadow-md transition-all hover:-translate-y-0.5">
-              <Plus className="w-5 h-5" /> NUEVA VENTA
+              className="bg-[#00C288] hover:bg-[#00ab78] text-white px-3 py-2 md:px-5 md:py-2.5 rounded-xl flex items-center gap-1.5 font-black text-xs md:text-sm tracking-wide shadow-md transition-all hover:-translate-y-0.5">
+              <Plus className="w-4 h-4" /> NUEVA VENTA
             </button>
           </div>
         </div>
