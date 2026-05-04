@@ -13,7 +13,6 @@
     "@clerk/localizations": "^4.5.4",
     "@clerk/react": "^6.4.4",
     "@hookform/resolvers": "^5.2.2",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.2",
     "@supabase/supabase-js": "^2.100.1",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
