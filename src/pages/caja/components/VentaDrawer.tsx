@@ -3,7 +3,7 @@ import { X, Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import type { VentaItem } from '../../../types/entities';
-import { METODOS_PAGO_NOMBRES } from '../../../constants';
+// Removed METODOS_PAGO_NOMBRES
 import { useBranchStore } from '../../../stores/branchStore';
 import { PaymentMethodPicker } from '../../../components/PaymentMethodPicker';
 
