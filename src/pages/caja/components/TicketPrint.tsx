@@ -25,6 +25,7 @@ export interface TicketData {
   metodoPago: string;
   codigoReferencia?: string;
   especialista?: string;
+  packNombre?: string;
 }
 
 interface TicketPrintProps {
@@ -244,6 +245,14 @@ export function TicketPrint({ isOpen, onClose, data }: TicketPrintProps) {
                   )}
                 </div>
               </div>
+
+              {/* === Pack/Promo aplicado === */}
+              {data.packNombre && (
+                <div className="mx-8 mt-4 px-4 py-2.5 bg-[#00C288]/5 rounded-lg border border-[#00C288]/10">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em]">Pack / Promoción aplicada</p>
+                  <p className="text-xs font-black text-[#004975] mt-0.5">{data.packNombre}</p>
+                </div>
+              )}
 
               {/* === Tabla de Servicios === */}
               <div className="px-8 py-5">

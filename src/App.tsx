@@ -11,6 +11,7 @@ import { TiendaPage } from './pages/configuracion/TiendaPage';
 import { UsuariosPage } from './pages/configuracion/UsuariosPage';
 import { ServiciosPage } from './pages/configuracion/ServiciosPage';
 import { InventarioPage } from './pages/configuracion/InventarioPage';
+import { PacksPromocionesPage } from './pages/configuracion/PacksPromocionesPage';
 import { Toaster } from 'react-hot-toast';
 import { Show, SignInButton } from '@clerk/react';
 import { AuthGuard } from './components/auth/AuthGuard';
@@ -61,6 +62,7 @@ export default function App() {
                 <Route path="usuarios" element={<UsuariosPage />} />
                 <Route path="servicios" element={<ServiciosPage />} />
                 <Route path="inventario" element={<InventarioPage />} />
+                <Route path="packs-promociones" element={<PacksPromocionesPage />} />
               </Route>
             </Routes>
           </BrowserRouter>

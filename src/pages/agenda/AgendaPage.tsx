@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Search, Download, X, AlertTriangle } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Search, Download, X, AlertTriangle, Package, Repeat } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { format, addDays, subDays, addMonths, subMonths, isSameDay, startOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -12,7 +12,7 @@ import { ExportModal } from '../../components/ExportModal';
 import { useBranchStore } from '../../stores/branchStore';
 import { useAuthStore } from '../../stores/authStore';
 import type { CsvColumn } from '../../lib/exportCsv';
-import type { CitaList } from '../../types/entities';
+import type { CitaList, Pack } from '../../types/entities';
 import { DatePicker } from '../../components/DatePicker';
 
 // Re-export for CitasListPanel
@@ -38,6 +38,7 @@ export function AgendaPage() {
   const [calendarViewDate, setCalendarViewDate] = useState<Date>(new Date());
   const [visibleDays, setVisibleDays] = useState(7);
   const stripRef = useRef<HTMLDivElement>(null);
+  const [promosActivas, setPromosActivas] = useState<Pack[]>([]);
 
   const calcVisibleDays = useCallback(() => {
     if (stripRef.current) {
@@ -122,6 +123,31 @@ export function AgendaPage() {
     };
     fetchPodologos();
   }, [sucursalActiva?.id]);
+
+  // Fetch promos/packs activos para la fecha seleccionada
+  useEffect(() => {
+    const fetchPromos = async () => {
+      if (!sucursalActiva?.id) return;
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+      const { data } = await supabase
+        .from('packs_promociones')
+        .select('id, nombre, tipo, precio_pack, total_sesiones, fecha_inicio, fecha_fin, stock_total, stock_usado, estado')
+        .eq('sucursal_id', sucursalActiva.id)
+        .eq('estado', true);
+
+      if (data) {
+        const vigentes = (data as Pack[]).filter(p => {
+          if (p.fecha_inicio && p.fecha_inicio > dateStr) return false;
+          if (p.fecha_fin && p.fecha_fin < dateStr) return false;
+          if (p.stock_total && (p.stock_usado || 0) >= p.stock_total) return false;
+          return true;
+        });
+        setPromosActivas(vigentes);
+      }
+    };
+    fetchPromos();
+  }, [selectedDate, sucursalActiva?.id]);
 
   const fetchCitas = async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
@@ -498,6 +524,35 @@ export function AgendaPage() {
           <option value="Sin Resolver">⚠️ Sin Resolver</option>
         </select>
       </div>
+
+      {/* Promos activas para la fecha */}
+      {promosActivas.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide px-1 -mt-4">
+          {promosActivas.map(promo => {
+            const Icon = promo.tipo.startsWith('pack_sesiones') ? Repeat : Package;
+            const label = promo.precio_pack ? `S/ ${promo.precio_pack.toFixed(2)}` : '';
+            const dateRange = promo.fecha_inicio && promo.fecha_fin
+              ? `${format(new Date(promo.fecha_inicio + 'T12:00:00'), "d MMM", { locale: es })} - ${format(new Date(promo.fecha_fin + 'T12:00:00'), "d MMM", { locale: es })}`
+              : promo.fecha_fin ? `Hasta ${format(new Date(promo.fecha_fin + 'T12:00:00'), "d MMM", { locale: es })}` : '';
+
+            return (
+              <div
+                key={promo.id}
+                className="flex items-center gap-2.5 bg-gradient-to-r from-[#00C288]/5 to-[#004975]/5 border border-[#00C288]/20 rounded-xl px-3 py-2 shrink-0"
+              >
+                <Icon className="w-4 h-4 text-[#00C288] shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black text-[#004975] truncate">{promo.nombre}</p>
+                  <p className="text-[9px] font-bold text-gray-400">
+                    {label}{dateRange ? ` · ${dateRange}` : ''}
+                    {promo.total_sesiones ? ` · ${promo.total_sesiones} sesiones` : ''}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex items-center px-2">
         <label className="flex items-center gap-3 cursor-pointer group">

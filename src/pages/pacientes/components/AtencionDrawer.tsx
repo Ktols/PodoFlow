@@ -30,6 +30,8 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
   const [podologosList, setPodologosList] = useState<{id: string, nombres: string, color_etiqueta: string}[]>([]);
   const [serviciosList, setServiciosList] = useState<{id: string, nombre: string, precio_base: number}[]>([]);
   const [productosList, setProductosList] = useState<{id: string, nombre: string}[]>([]);
+  const [lockedFromPack, setLockedFromPack] = useState<{ servicios: Set<string>; productos: Set<string> }>({ servicios: new Set(), productos: new Set() });
+  const [hasPackAssigned, setHasPackAssigned] = useState(false);
   const [antecedentes, setAntecedentes] = useState<{
     diabetes?: boolean;
     hipertension?: boolean;
@@ -85,6 +87,8 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
         });
       } else {
         setExistingPhotos([]);
+        setLockedFromPack({ servicios: new Set(), productos: new Set() });
+        setHasPackAssigned(false);
         reset({
           motivo_consulta: '',
           diagnostico: '',
@@ -102,12 +106,60 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
         
         if (originCitaId) {
           const fetchCita = async () => {
-            const { data } = await supabase.from('citas').select('podologo_id, servicios_preseleccionados').eq('id', originCitaId).single();
+            const { data } = await supabase.from('citas').select('podologo_id, motivo, servicios_preseleccionados, pack_id').eq('id', originCitaId).single();
             if (data?.podologo_id) {
               setValue('podologo_id', data.podologo_id);
             }
-            if (data?.servicios_preseleccionados && Array.isArray(data.servicios_preseleccionados) && data.servicios_preseleccionados.length > 0) {
-              setValue('tratamientos_realizados', data.servicios_preseleccionados, { shouldValidate: true });
+            // Pre-llenar motivo desde la cita
+            if (data?.motivo) {
+              setValue('motivo_consulta', data.motivo, { shouldDirty: true, shouldValidate: true });
+            }
+
+            let tratamientos: string[] = [];
+            const productos: string[] = [];
+
+            // Cargar servicios preseleccionados de la cita
+            if (data?.servicios_preseleccionados && Array.isArray(data.servicios_preseleccionados)) {
+              tratamientos = [...data.servicios_preseleccionados];
+            }
+
+            // Si tiene pack, cargar servicios/productos del pack como bloqueados (sobreescribe motivo con nombre del pack)
+            if (data?.pack_id) {
+              setHasPackAssigned(true);
+              const lockedSrv = new Set<string>();
+              const lockedProd = new Set<string>();
+
+              // Fetch pack name for motivo
+              const { data: packData } = await supabase
+                .from('packs_promociones')
+                .select('nombre')
+                .eq('id', data.pack_id)
+                .single();
+              if (packData?.nombre) {
+                setValue('motivo_consulta', packData.nombre, { shouldDirty: true, shouldValidate: true });
+              }
+
+              const { data: packItems } = await supabase
+                .from('pack_items')
+                .select('servicio_id, producto_id, servicios:servicio_id (nombre), productos:producto_id (nombre)')
+                .eq('pack_id', data.pack_id);
+
+              if (packItems) {
+                for (const item of packItems) {
+                  const srvName = (item.servicios as unknown as { nombre: string } | null)?.nombre;
+                  const prodName = (item.productos as unknown as { nombre: string } | null)?.nombre;
+                  if (srvName) { if (!tratamientos.includes(srvName)) tratamientos.push(srvName); lockedSrv.add(srvName); }
+                  if (prodName) { if (!productos.includes(prodName)) productos.push(prodName); lockedProd.add(prodName); }
+                }
+              }
+              setLockedFromPack({ servicios: lockedSrv, productos: lockedProd });
+            }
+
+            if (tratamientos.length > 0) {
+              setValue('tratamientos_realizados', tratamientos, { shouldValidate: true });
+            }
+            if (productos.length > 0) {
+              setValue('productos_usados', productos);
             }
           };
           fetchCita();
@@ -182,7 +234,110 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
         toast.success('Nueva atención registrada');
         
         if (originCitaId) {
-          await supabase.from('citas').update({ estado: 'Atendida' }).eq('id', originCitaId);
+          // Actualizar estado + sincronizar podólogo de la atención a la cita
+          await supabase.from('citas').update({
+            estado: 'Atendida',
+            ...(data.podologo_id ? { podologo_id: data.podologo_id } : {}),
+          }).eq('id', originCitaId);
+        }
+
+        // Lógica de packs: consumir sesión si el paciente tiene crédito activo
+        // Funciona tanto con cita (originCitaId) como con atención directa
+        {
+          // Determinar qué pack_id usar: de la cita o buscar crédito activo del paciente
+          let packId: string | null = null;
+          let citaSucursalId = '';
+
+          if (originCitaId) {
+            const { data: citaData } = await supabase
+              .from('citas')
+              .select('pack_id, sucursal_id')
+              .eq('id', originCitaId)
+              .single();
+            packId = citaData?.pack_id || null;
+            citaSucursalId = citaData?.sucursal_id || '';
+          }
+
+          // Si no hay pack de la cita, buscar créditos activos del paciente que coincidan con los tratamientos
+          if (!packId) {
+            const { data: creditosActivos } = await supabase
+              .from('pack_creditos')
+              .select('pack_id, sesiones_usadas, sesiones_total, packs_promociones:pack_id (tipo, pack_items (servicio_id, servicios:servicio_id (nombre)))')
+              .eq('paciente_id', pacienteId)
+              .eq('estado', 'activo');
+
+            if (creditosActivos) {
+              const tratamientos = data.tratamientos_realizados || [];
+              for (const cred of creditosActivos) {
+                const pack = cred.packs_promociones as unknown as { tipo: string; pack_items: { servicios: { nombre: string } | null }[] } | null;
+                if (pack?.tipo === 'pack_sesiones_prepago') {
+                  const packNames = (pack.pack_items || []).map(i => i.servicios?.nombre).filter(Boolean);
+                  if (packNames.some(n => tratamientos.includes(n as string))) {
+                    packId = cred.pack_id;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (packId) {
+            const { data: packData } = await supabase
+              .from('packs_promociones')
+              .select('tipo, total_sesiones, pack_items (servicio_id, servicios:servicio_id (nombre))')
+              .eq('id', packId)
+              .single();
+
+            if (packData?.tipo === 'pack_sesiones_prepago') {
+              const { data: credito } = await supabase
+                .from('pack_creditos')
+                .select('id, sesiones_usadas, sesiones_total')
+                .eq('pack_id', packId)
+                .eq('paciente_id', pacienteId)
+                .eq('estado', 'activo')
+                .maybeSingle();
+
+              if (credito) {
+                const packServiceNames = new Set(
+                  ((packData as Record<string, unknown>).pack_items as { servicios: { nombre: string } | null }[] || [])
+                    .map(i => i.servicios?.nombre)
+                    .filter(Boolean)
+                );
+                const tratamientosRealizados = data.tratamientos_realizados || [];
+                const hasExtras = tratamientosRealizados.some((t: string) => !packServiceNames.has(t));
+
+                // Consumir 1 sesión
+                const newUsadas = credito.sesiones_usadas + 1;
+                await supabase.from('pack_creditos').update({
+                  sesiones_usadas: newUsadas,
+                  estado: newUsadas >= credito.sesiones_total ? 'completado' : 'activo',
+                }).eq('id', credito.id);
+
+                await supabase.from('pack_sesiones_log').insert([{
+                  credito_id: credito.id,
+                  sesion_numero: newUsadas,
+                  cita_id: originCitaId || null,
+                  monto_pagado: 0,
+                }]);
+
+                if (!hasExtras) {
+                  await supabase.from('pagos').insert([{
+                    cita_id: originCitaId || null,
+                    paciente_id: pacienteId,
+                    monto_total: 0,
+                    metodo_pago: 'Pack Prepago',
+                    estado: 'Pagado',
+                    fecha_pago: new Date().toISOString(),
+                    pack_id: packId,
+                    sucursal_id: citaSucursalId || null,
+                  }]);
+                  toast.success(`Sesión ${newUsadas}/${credito.sesiones_total} registrada automáticamente`);
+                } else {
+                  toast.success(`Sesión ${newUsadas}/${credito.sesiones_total} registrada. Servicios adicionales pendientes de cobro.`);
+                }
+              }
+            }
+          }
         }
       }
 
@@ -205,7 +360,7 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
       <div className="absolute right-0 inset-y-0 w-full md:w-[500px] bg-background-container shadow-2xl z-[10000] transform transition-transform duration-300 flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-secondary">
-            {atencion ? 'Editar Atención Médica' : 'Registrar Nueva Atención'}
+            {atencion ? 'Editar Atención Médica' : 'Registrar Atención'}
           </h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
             <X className="w-5 h-5" />
@@ -271,19 +426,37 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
             </div>
 
             <div className="bg-white p-4 md:p-5 rounded-xl border border-gray-200 shadow-sm">
-              <label className="block text-sm font-bold text-secondary mb-3">Tratamientos Realizados <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-bold text-secondary mb-3">
+                Tratamientos Realizados <span className="text-red-500">*</span>
+                {hasPackAssigned && <span className="ml-2 text-[10px] font-bold text-[#00C288] bg-[#00C288]/10 px-2 py-0.5 rounded-full">Pack asignado</span>}
+              </label>
               {serviciosList.length === 0 ? (
                 <p className="text-sm font-bold text-gray-400 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center">
                   No hay servicios activos. Cree uno desde Caja → Lista de Precios.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
-                  {serviciosList.map(srv => (
-                    <label key={srv.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors group">
-                      <input type="checkbox" value={srv.nombre} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300" {...register('tratamientos_realizados')} />
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-blue-800 transition-colors uppercase tracking-tight">{srv.nombre}</span>
-                    </label>
-                  ))}
+                  {serviciosList.map(srv => {
+                    const isLocked = lockedFromPack.servicios.has(srv.nombre);
+                    return (
+                      <label
+                        key={srv.id}
+                        className={`flex items-center gap-2.5 p-2 -ml-2 rounded-lg transition-colors group ${isLocked ? 'cursor-default bg-[#00C288]/5' : 'cursor-pointer hover:bg-gray-50'}`}
+                        onClick={isLocked ? (e) => e.preventDefault() : undefined}
+                      >
+                        <input
+                          type="checkbox"
+                          value={srv.nombre}
+                          className={`w-4 h-4 rounded border-gray-300 ${isLocked ? 'text-[#00C288] pointer-events-none' : 'text-blue-600 focus:ring-blue-500'}`}
+                          {...register('tratamientos_realizados')}
+                        />
+                        <span className={`text-sm font-medium transition-colors uppercase tracking-tight ${isLocked ? 'text-[#004975]' : 'text-gray-700 group-hover:text-blue-800'}`}>
+                          {srv.nombre}
+                          {isLocked && <span className="ml-1.5 text-[9px] font-bold text-[#00C288] bg-[#00C288]/10 px-1.5 py-0.5 rounded normal-case">Pack</span>}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
               {errors.tratamientos_realizados && <p className="text-red-500 text-xs mt-2">{errors.tratamientos_realizados.message}</p>}
@@ -301,12 +474,27 @@ export function AtencionDrawer({ isOpen, onClose, onSuccess, pacienteId, atencio
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
-                  {productosList.map(prod => (
-                    <label key={prod.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors group">
-                      <input type="checkbox" value={prod.nombre} className="w-4 h-4 rounded text-[#00C288] focus:ring-[#00C288] border-gray-300" {...register('productos_usados')} />
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-[#004975] transition-colors">{prod.nombre}</span>
-                    </label>
-                  ))}
+                  {productosList.map(prod => {
+                    const isLocked = lockedFromPack.productos.has(prod.nombre);
+                    return (
+                      <label
+                        key={prod.id}
+                        className={`flex items-center gap-2.5 p-2 -ml-2 rounded-lg transition-colors group ${isLocked ? 'cursor-default bg-purple-50/50' : 'cursor-pointer hover:bg-gray-50'}`}
+                        onClick={isLocked ? (e) => e.preventDefault() : undefined}
+                      >
+                        <input
+                          type="checkbox"
+                          value={prod.nombre}
+                          className={`w-4 h-4 rounded border-gray-300 ${isLocked ? 'text-purple-500 pointer-events-none' : 'text-[#00C288] focus:ring-[#00C288]'}`}
+                          {...register('productos_usados')}
+                        />
+                        <span className={`text-sm font-medium transition-colors ${isLocked ? 'text-[#004975]' : 'text-gray-700 group-hover:text-[#004975]'}`}>
+                          {prod.nombre}
+                          {isLocked && <span className="ml-1.5 text-[9px] font-bold text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">Pack</span>}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>
