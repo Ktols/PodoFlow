@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, Activity, CalendarDays, Edit3, AlertTriangle, X, Printer, ShoppingCart, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import type { Paciente, Atencion, Venta, VentaItem } from '../../types/entities';
+import type { Paciente, Atencion, Venta, VentaItem, PackCredito } from '../../types/entities';
 import { AtencionDrawer } from './components/AtencionDrawer';
 import { StampCard } from '../../components/StampCard';
 import { format } from 'date-fns';
@@ -25,7 +25,8 @@ export function HistoriaClinicaPage() {
   const [originCitaId, setOriginCitaId] = useState<string | null>(null);
   const [selectedAtencion, setSelectedAtencion] = useState<Atencion | null>(null);
   const [selectedImage, setSelectedImage] = useState<{url: string, atencion: Atencion} | null>(null);
-  const [activeTab, setActiveTab] = useState<'historial' | 'compras'>('historial');
+  const [activeTab, setActiveTab] = useState<'historial' | 'compras' | 'packs'>('historial');
+  const [packsData, setPacksData] = useState<PackCredito[]>([]);
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [ventasLoading, setVentasLoading] = useState(false);
   const [printAtencionId, setPrintAtencionId] = useState<string | null>(null);
@@ -74,7 +75,18 @@ export function HistoriaClinicaPage() {
     if (atencionesData) {
       setAtenciones(atencionesData);
     }
-    
+
+    // Fetch packs del paciente (activos + completados)
+    const { data: creditosData } = await supabase
+      .from('pack_creditos')
+      .select('*, packs_promociones:pack_id (nombre, tipo, precio_pack), pack_sesiones_log (id, sesion_numero, fecha_uso, monto_pagado)')
+      .eq('paciente_id', id)
+      .in('estado', ['activo', 'completado'])
+      .order('fecha_compra', { ascending: false });
+    if (creditosData) {
+      setPacksData(creditosData as unknown as PackCredito[]);
+    }
+
     setIsLoading(false);
   };
 
@@ -207,6 +219,41 @@ export function HistoriaClinicaPage() {
         <StampCard sellos={paciente.sellos || 0} sellosCanjeados={paciente.sellos_canjeados || 0} />
       </div>
 
+      {/* Packs Activos - Resumen compacto */}
+      {packsData.filter(p => p.estado === 'activo').length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 print:hidden">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-black text-[#004975] flex items-center gap-2">
+              <Package className="w-4 h-4 text-purple-500" />
+              Packs Activos
+            </h3>
+            <button onClick={() => setActiveTab('packs')} className="text-[10px] font-black text-purple-500 hover:text-purple-700 uppercase tracking-wider transition-colors">
+              Ver detalle
+            </button>
+          </div>
+          <div className="space-y-2">
+            {packsData.filter(p => p.estado === 'activo').map(pack => {
+              const info = pack.packs_promociones as unknown as { nombre: string; tipo: string } | null;
+              const pct = pack.sesiones_total > 0 ? (pack.sesiones_usadas / pack.sesiones_total) * 100 : 0;
+              const restantes = pack.sesiones_total - pack.sesiones_usadas;
+              return (
+                <div key={pack.id} className="flex items-center gap-3 bg-purple-50/50 rounded-lg border border-purple-100 p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-[#004975] truncate">{info?.nombre || 'Pack'}</p>
+                    <div className="w-full bg-purple-100 rounded-full h-1.5 mt-1">
+                      <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full shrink-0">
+                    {restantes} rest.
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Panel de Perfil Clínico / Antecedentes */}
       <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 print:shadow-none ${printAtencionId ? 'print:hidden' : 'print:border-gray-300 print:break-inside-avoid print:p-4'}`}>
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -298,6 +345,24 @@ export function HistoriaClinicaPage() {
               {ventas.length > 0 && (
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'compras' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
                   {ventas.length}
+                </span>
+              )}
+            </button>
+          )}
+          {!isPodologo && (
+            <button
+              onClick={() => setActiveTab('packs')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all ${
+                activeTab === 'packs'
+                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+                  : 'text-gray-400 hover:text-purple-600 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Packs
+              {packsData.length > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === 'packs' ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+                  {packsData.length}
                 </span>
               )}
             </button>
@@ -558,6 +623,130 @@ export function HistoriaClinicaPage() {
               </div>
             </div>
           )
+        ) : activeTab === 'packs' ? (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {packsData.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-gray-100 shadow-sm">
+                <Package className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-400 font-bold text-sm">Este paciente no tiene packs registrados</p>
+              </div>
+            ) : (
+              <>
+                {/* Activos */}
+                {packsData.filter(p => p.estado === 'activo').length > 0 && (
+                  <div>
+                    <h3 className="text-[11px] font-black text-[#004975] uppercase tracking-[0.15em] mb-3">Activos</h3>
+                    <div className="space-y-4">
+                      {packsData.filter(p => p.estado === 'activo').map(credito => {
+                        const info = credito.packs_promociones as unknown as { nombre: string; tipo: string; precio_pack: number | null } | null;
+                        const pct = credito.sesiones_total > 0 ? (credito.sesiones_usadas / credito.sesiones_total) * 100 : 0;
+                        const logs = (credito.pack_sesiones_log || []).sort((a, b) => a.sesion_numero - b.sesion_numero);
+                        const totalPagado = logs.reduce((s, l) => s + (l.monto_pagado || 0), 0);
+
+                        return (
+                          <div key={credito.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="p-5">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-black text-[#004975]">{info?.nombre || 'Pack'}</h4>
+                                <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                                  {credito.sesiones_total - credito.sesiones_usadas} restantes
+                                </span>
+                              </div>
+                              <div className="w-full bg-purple-100 rounded-full h-3 mb-2">
+                                <div className="bg-purple-500 h-3 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                              <p className="text-xs font-bold text-gray-400">
+                                {credito.sesiones_usadas} de {credito.sesiones_total} sesiones
+                                {info?.tipo?.includes('prepago') ? ' · Prepago' : info?.tipo?.includes('fraccionado') ? ' · Fraccionado' : ' · Pack'}
+                              </p>
+                            </div>
+
+                            {credito.sesiones_total > 1 && (
+                              <div className="border-t border-gray-100">
+                                <table className="w-full">
+                                  <thead>
+                                    <tr className="bg-gray-50">
+                                      <th className="text-left px-5 py-2 text-[10px] font-black text-gray-400 uppercase tracking-wider">#</th>
+                                      <th className="text-left px-5 py-2 text-[10px] font-black text-gray-400 uppercase tracking-wider">Fecha</th>
+                                      <th className="text-right px-5 py-2 text-[10px] font-black text-gray-400 uppercase tracking-wider">Monto</th>
+                                      <th className="text-center px-5 py-2 text-[10px] font-black text-gray-400 uppercase tracking-wider">Estado</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {Array.from({ length: credito.sesiones_total }, (_, i) => {
+                                      const log = logs.find(l => l.sesion_numero === i + 1);
+                                      return (
+                                        <tr key={i} className="border-t border-gray-50">
+                                          <td className="px-5 py-2.5 text-xs font-bold text-gray-400">{i + 1}</td>
+                                          <td className="px-5 py-2.5 text-xs font-bold text-[#004975]">
+                                            {log ? format(new Date(log.fecha_uso), "d MMM yyyy", { locale: es }) : '-'}
+                                          </td>
+                                          <td className="px-5 py-2.5 text-xs font-bold text-right tabular-nums text-gray-600">
+                                            {log ? `S/ ${log.monto_pagado.toFixed(2)}` : '-'}
+                                          </td>
+                                          <td className="px-5 py-2.5 text-center">
+                                            {log ? (
+                                              <span className="text-[10px] font-bold text-[#00C288] bg-[#00C288]/10 px-2 py-0.5 rounded-full">Completada</span>
+                                            ) : (
+                                              <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Pendiente</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-gray-400">
+                                Comprado: {format(new Date(credito.fecha_compra), "d MMM yyyy", { locale: es })}
+                              </span>
+                              <span className="text-xs font-black text-[#004975] tabular-nums">
+                                Total pagado: S/ {totalPagado.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Completados */}
+                {packsData.filter(p => p.estado === 'completado').length > 0 && (
+                  <div>
+                    <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] mb-3">Completados</h3>
+                    <div className="space-y-3">
+                      {packsData.filter(p => p.estado === 'completado').map(credito => {
+                        const info = credito.packs_promociones as unknown as { nombre: string; tipo: string } | null;
+                        const logs = credito.pack_sesiones_log || [];
+                        const totalPagado = logs.reduce((s, l) => s + (l.monto_pagado || 0), 0);
+
+                        return (
+                          <div key={credito.id} className="bg-gray-50 rounded-xl border border-gray-200 p-4 opacity-75">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-black text-[#004975] flex items-center gap-2">
+                                  {info?.nombre || 'Pack'}
+                                  <span className="text-[10px] font-bold text-[#00C288] bg-[#00C288]/10 px-2 py-0.5 rounded-full">Completado</span>
+                                </p>
+                                <p className="text-[10px] font-bold text-gray-400 mt-1">
+                                  {credito.sesiones_total} sesiones · Total pagado: S/ {totalPagado.toFixed(2)}
+                                  {credito.fecha_compra && ` · ${format(new Date(credito.fecha_compra), "d MMM yyyy", { locale: es })}`}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         ) : null}
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle, Plus, Clock, DollarSign, History } from 'lucide-react';
+import { X, Search, AlertTriangle, Plus, Clock, DollarSign, History, Package, Repeat } from 'lucide-react';
 import { PacienteDrawer } from '../../pacientes/components/PacienteDrawer';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,7 +8,7 @@ import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { CitaList, Paciente } from '../../../types/entities';
+import type { CitaList, Paciente, Pack } from '../../../types/entities';
 import { useBranchStore } from '../../../stores/branchStore';
 import type { AtencionRow } from '../../../types/agenda';
 import { TIME_OPTIONS } from '../../../constants';
@@ -92,12 +92,16 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
   const [adelantoReferencia, setAdelantoReferencia] = useState('');
+  const [packsDisponibles, setPacksDisponibles] = useState<Pack[]>([]);
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [pacienteCreditos, setPacienteCreditos] = useState<Record<string, { usadas: number; total: number }>>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // useWatch en lugar de watch() → re-render aislado por campo (sub-usewatch-over-watch)
   const selectedPacienteId = useWatch({ control, name: 'paciente_id', defaultValue: '' });
   const watchedFechaCita = useWatch({ control, name: 'fecha_cita', defaultValue: '' });
   const watchedAdelantoMetodo = useWatch({ control, name: 'adelanto_metodo_pago', defaultValue: '' });
+  const watchedServicios = useWatch({ control, name: 'servicios_preseleccionados' }) as string[] | undefined;
   const selectedPaciente = pacientes.find(p => p.id === selectedPacienteId);
 
   // Fetch patient history when selected
@@ -151,6 +155,27 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
     };
     fetchHistory();
   }, [selectedPacienteId]);
+
+  // Fetch créditos activos del paciente seleccionado
+  useEffect(() => {
+    if (!selectedPacienteId || !sucursalActiva?.id) { setPacienteCreditos({}); return; }
+    const fetchCreditos = async () => {
+      const { data } = await supabase
+        .from('pack_creditos')
+        .select('pack_id, sesiones_usadas, sesiones_total')
+        .eq('paciente_id', selectedPacienteId)
+        .eq('estado', 'activo')
+        .eq('sucursal_id', sucursalActiva.id);
+      if (data) {
+        const map: Record<string, { usadas: number; total: number }> = {};
+        data.forEach((c: { pack_id: string; sesiones_usadas: number; sesiones_total: number }) => {
+          map[c.pack_id] = { usadas: c.sesiones_usadas, total: c.sesiones_total };
+        });
+        setPacienteCreditos(map);
+      }
+    };
+    fetchCreditos();
+  }, [selectedPacienteId, sucursalActiva?.id]);
 
   // Mantiene sincronizada la hora cuando cambia la fecha
   useEffect(() => {
@@ -217,6 +242,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
       setSearchTerm('');
       setValidationError(null);
       setAdelantoReferencia('');
+      setSelectedPackId((citaEnEdicion as CitaList & { pack_id?: string })?.pack_id || null);
 
       const fetchPodologos = async () => {
         if (!sucursalActiva?.id) return;
@@ -233,8 +259,28 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
         if (data) setServiciosList(data);
       };
 
+      const fetchPacks = async () => {
+        if (!sucursalActiva?.id) return;
+        const { data } = await supabase
+          .from('packs_promociones')
+          .select(`id, nombre, tipo, precio_pack, descuento_porcentaje, descuento_monto, total_sesiones, fecha_inicio, fecha_fin, stock_total, stock_usado, pack_items (id, servicio_id, producto_id, cantidad, servicios:servicio_id (id, nombre, precio_base), productos:producto_id (id, nombre, precio))`)
+          .eq('sucursal_id', sucursalActiva.id)
+          .eq('estado', true);
+        if (data) {
+          const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+          const vigentes = (data as unknown as Pack[]).filter(p => {
+            if (p.fecha_inicio && p.fecha_inicio > dateStr) return false;
+            if (p.fecha_fin && p.fecha_fin < dateStr) return false;
+            if (p.stock_total && (p.stock_usado || 0) >= p.stock_total) return false;
+            return true;
+          });
+          setPacksDisponibles(vigentes);
+        }
+      };
+
       fetchPodologos();
       fetchServicios();
+      fetchPacks();
     }
   }, [isOpen, selectedDate, reset, citaEnEdicion]);
 
@@ -323,6 +369,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           adelanto: adelantoVal,
           adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
           sucursal_id: sucursalActiva?.id,
+          pack_id: selectedPackId || null,
         }).eq('id', citaEnEdicion.id);
 
         if (error) throw error;
@@ -340,6 +387,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
           adelanto: adelantoVal,
           adelanto_metodo_pago: adelantoVal > 0 ? (data.adelanto_metodo_pago || 'Efectivo') : null,
           sucursal_id: sucursalActiva?.id,
+          pack_id: selectedPackId || null,
         }]);
 
         if (error) throw error;
@@ -628,6 +676,89 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                 </div>
               </div>
 
+              {/* Pack / Promoción */}
+              {packsDisponibles.length > 0 && (
+                <div className="bg-gradient-to-r from-[#00C288]/5 to-[#004975]/5 p-4 rounded-xl border border-[#00C288]/20 shadow-sm">
+                  <label className="block text-sm font-bold text-[#004975] mb-2 flex items-center gap-2">
+                    <Package className="w-4 h-4 text-[#00C288]" />
+                    Aplicar Pack (opcional)
+                  </label>
+                  <div className="space-y-1.5">
+                    {selectedPackId && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPackId(null)}
+                        className="text-[10px] font-bold text-red-400 hover:text-red-600 transition-colors mb-1"
+                      >
+                        ✕ Quitar oferta
+                      </button>
+                    )}
+                    {packsDisponibles.map(pack => {
+                      const isSelected = selectedPackId === pack.id;
+                      const Icon = pack.tipo.startsWith('pack_sesiones') ? Repeat : Package;
+                      const credito = pacienteCreditos[pack.id];
+                      const hasActiveCredit = !!credito;
+                      const priceLabel = pack.precio_pack ? `S/ ${pack.precio_pack.toFixed(2)}` : '';
+                      const items = pack.pack_items || [];
+
+                      return (
+                        <div key={pack.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPackId(isSelected ? null : pack.id)}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                              isSelected
+                                ? 'bg-[#00C288]/10 border-[#00C288] shadow-sm'
+                                : hasActiveCredit
+                                  ? 'bg-purple-50 border-purple-300 hover:border-purple-400'
+                                  : 'bg-white border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${isSelected ? 'bg-[#00C288] border-[#00C288]' : hasActiveCredit ? 'bg-purple-500 border-purple-500' : 'border-gray-300'}`}>
+                                {isSelected && <span className="text-white text-[8px]">✓</span>}
+                                {!isSelected && hasActiveCredit && <Repeat className="w-2.5 h-2.5 text-white" />}
+                              </div>
+                              <div>
+                                <span className={`text-xs font-bold block ${isSelected ? 'text-[#004975]' : hasActiveCredit ? 'text-purple-700' : 'text-gray-600'}`}>{pack.nombre}</span>
+                                <span className={`text-[10px] flex items-center gap-1 ${hasActiveCredit ? 'text-purple-500 font-bold' : 'text-gray-400'}`}>
+                                  <Icon className="w-3 h-3" />
+                                  {hasActiveCredit
+                                    ? `${credito.usadas}/${credito.total} sesiones usadas`
+                                    : pack.tipo === 'pack_servicios' ? 'Pack' : `${pack.total_sesiones} sesiones`
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`text-xs font-black tabular-nums ${isSelected ? 'text-[#00C288]' : 'text-gray-400'}`}>
+                              {priceLabel}
+                            </span>
+                          </button>
+                          {isSelected && items.length > 0 && (
+                            <div className="ml-7 mt-1.5 space-y-1 animate-in fade-in duration-200">
+                              {items.map(item => (
+                                <div key={item.id} className="flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-gray-100 text-[11px]">
+                                  <div>
+                                    <span className="font-bold text-gray-600">
+                                      {item.servicios?.nombre || item.productos?.nombre}
+                                    </span>
+                                    {item.cantidad > 1 && <span className="text-gray-400 ml-1">x{item.cantidad}</span>}
+                                    {item.productos && <span className="ml-1.5 text-[9px] font-bold text-purple-500 bg-purple-50 px-1 py-0.5 rounded">Producto</span>}
+                                  </div>
+                                  <span className="font-bold text-gray-400 tabular-nums">
+                                    S/ {((item.servicios?.precio_base || item.productos?.precio || 0) * item.cantidad).toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Servicios / Tratamientos preseleccionados */}
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                 <label className="block text-sm font-bold text-[#004975] mb-3">Tratamientos Previstos</label>
@@ -659,8 +790,22 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                 {errors.motivo && <p className="text-red-500 text-xs mt-1.5 font-bold px-1">{errors.motivo.message}</p>}
               </div>
 
-              {/* Pago Adelantado (opcional) */}
-              <div className="bg-[#00C288]/5 rounded-xl border border-[#00C288]/20 p-4 space-y-3">
+              {/* Pago Adelantado (opcional) - ocultar si pack prepago con crédito y sin extras */}
+              {(() => {
+                const selPack = packsDisponibles.find(p => p.id === selectedPackId);
+                if (selPack?.tipo === 'pack_sesiones_prepago' && selectedPackId && pacienteCreditos[selectedPackId]) {
+                  // Pack prepago cubierto - verificar si hay servicios extra fuera del pack
+                  const packItemNames = new Set(
+                    (selPack.pack_items || []).map(i =>
+                      (i.servicios as unknown as { nombre: string } | null)?.nombre
+                    ).filter(Boolean)
+                  );
+                  const selectedServices = watchedServicios || [];
+                  const hasExtras = selectedServices.some(s => !packItemNames.has(s));
+                  if (!hasExtras) return false;
+                }
+                return true;
+              })() && <div className="bg-[#00C288]/5 rounded-xl border border-[#00C288]/20 p-4 space-y-3">
                 <label className="block text-sm font-bold text-[#004975] flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-[#00C288]" />
                   Pago Adelantado (opcional)
@@ -684,7 +829,7 @@ export function CitaDrawer({ isOpen, onClose, onSuccess, selectedDate, citaEnEdi
                   onReferenciaChange={setAdelantoReferencia}
                 />
                 <p className="text-[10px] font-bold text-[#00C288]/70">Si el paciente realiza un pago por adelantado, se descontará del total al momento del cobro.</p>
-              </div>
+              </div>}
 
             </form>
           </div>
