@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, CheckCircle2, User, Clock, Gift, Package, Repeat } from 'lucide-react';
+import { X, CheckCircle2, User, Clock, Gift, Package, Repeat, Search, Plus, Minus, Trash2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { StampCard } from '../../../components/StampCard';
 import { SELLOS_PARA_GRATIS } from '../../../config/clinicData';
 import { useBranchStore } from '../../../stores/branchStore';
-import type { CitaParaCobro, Pack, PackCredito } from '../../../types/entities';
+import type { CitaParaCobro, Pack, PackCredito, VentaItem } from '../../../types/entities';
 import { PaymentMethodPicker } from '../../../components/PaymentMethodPicker';
 
 interface ServicioActivo {
@@ -43,8 +43,12 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
   const [pacienteSellosCanjeados, setPacienteSellosCanjeados] = useState(0);
   const [canjearVisitaGratis, setCanjearVisitaGratis] = useState(false);
   const [productosRecetados, setProductosRecetados] = useState<ProductoRecetado[]>([]);
-  const [productosDisponibles, setProductosDisponibles] = useState<ProductoRecetado[]>([]);
-  const [selectedProductos, setSelectedProductos] = useState<Set<string>>(new Set());
+  const [items, setItems] = useState<VentaItem[]>([]);
+  const [productoSearch, setProductoSearch] = useState('');
+  const [productoResults, setProductoResults] = useState<{id:string, nombre:string, precio:number, stock:number}[]>([]);
+  const [showProductoResults, setShowProductoResults] = useState(false);
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
+  const productoRef = useRef<HTMLDivElement>(null);
   const [packsDisponibles, setPacksDisponibles] = useState<Pack[]>([]);
   const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
   const [creditoActivo, setCreditoActivo] = useState<PackCredito | null>(null);
@@ -76,8 +80,9 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     setPacienteSellos(0);
     setPacienteSellosCanjeados(0);
     setProductosRecetados([]);
-    setProductosDisponibles([]);
-    setSelectedProductos(new Set());
+    setItems([]);
+    setProductoSearch('');
+    setStockMap({});
     setPacksDisponibles([]);
     setSelectedPack(null);
     setCreditoActivo(null);
@@ -135,7 +140,6 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       }
 
       // 4. Resolver medicamentos recetados a productos con precio y stock
-      let recetadosIds = new Set<string>();
       if (atencionData?.medicamentos_recetados && Array.isArray(atencionData.medicamentos_recetados) && atencionData.medicamentos_recetados.length > 0) {
         const { data: prodsData } = await supabase
           .from('productos')
@@ -145,22 +149,10 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
 
         if (prodsData && prodsData.length > 0) {
           setProductosRecetados(prodsData);
-          recetadosIds = new Set(prodsData.map(p => p.id));
         }
       }
 
-      // 5. Fetch todos los productos disponibles para compra opcional
-      const { data: allProdsData } = await supabase
-        .from('productos')
-        .select('id, nombre, precio, stock')
-        .eq('estado', true)
-        .eq('sucursal_id', sucursalActiva?.id)
-        .order('nombre');
-      if (allProdsData) {
-        setProductosDisponibles(allProdsData.filter(p => !recetadosIds.has(p.id)));
-      }
-
-      // 6. Fetch packs/promos activos para la sucursal
+      // 5. Fetch packs/promos activos para la sucursal
       const today = new Date().toISOString().split('T')[0];
       const { data: packsData } = await supabase
         .from('packs_promociones')
@@ -247,9 +239,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
       const totalServicios = servicios
         .filter(s => selectedServicios.has(s.id))
         .reduce((sum, s) => sum + s.precio_base, 0);
-      const totalProductos = [...productosRecetados, ...productosDisponibles]
-        .filter(p => selectedProductos.has(p.id))
-        .reduce((sum, p) => sum + p.precio, 0);
+      const totalProductos = items.reduce((sum, i) => sum + i.subtotal, 0);
       let total = totalServicios + totalProductos;
 
       if (selectedPack) {
@@ -294,7 +284,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
 
       setMontoTotal(total > 0 ? total.toFixed(2) : total === 0 ? '0.00' : '');
     }
-  }, [selectedServicios, servicios, selectedProductos, productosRecetados, productosDisponibles, montoManual, selectedPack, creditoActivo]);
+  }, [selectedServicios, servicios, items, montoManual, selectedPack, creditoActivo]);
 
   const toggleServicio = (id: string) => {
     setSelectedServicios(prev => {
@@ -306,13 +296,72 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
     setMontoManual(false);
   };
 
-  const toggleProducto = (id: string) => {
-    setSelectedProductos(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Click outside to close product dropdown
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (productoRef.current && !productoRef.current.contains(e.target as Node)) setShowProductoResults(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Producto search debounce
+  useEffect(() => {
+    if (productoSearch.length < 1) { setProductoResults([]); return; }
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('productos')
+        .select('id, nombre, precio, stock')
+        .eq('estado', true)
+        .eq('sucursal_id', sucursalActiva?.id)
+        .or(`nombre.ilike.%${productoSearch}%,codigo.ilike.%${productoSearch}%`)
+        .order('nombre')
+        .limit(10);
+      if (data) setProductoResults(data);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [productoSearch, sucursalActiva?.id]);
+
+  const addItem = (producto: {id:string, nombre:string, precio:number, stock:number}) => {
+    const existing = items.find(i => i.producto_id === producto.id);
+    if (existing) {
+      if (existing.cantidad >= producto.stock) {
+        toast.error(`Stock insuficiente (${producto.stock} disponibles)`);
+        return;
+      }
+      setItems(items.map(i =>
+        i.producto_id === producto.id
+          ? { ...i, cantidad: i.cantidad + 1, subtotal: (i.cantidad + 1) * i.precio_unitario }
+          : i
+      ));
+    } else {
+      setItems([...items, {
+        producto_id: producto.id,
+        nombre: producto.nombre,
+        precio_unitario: producto.precio,
+        cantidad: 1,
+        subtotal: producto.precio,
+      }]);
+      setStockMap(prev => ({ ...prev, [producto.id]: producto.stock }));
+    }
+    setProductoSearch('');
+    setShowProductoResults(false);
+    setMontoManual(false);
+  };
+
+  const updateQty = (productoId: string, delta: number) => {
+    const maxStock = stockMap[productoId] ?? Infinity;
+    setItems(prev => prev.map(i => {
+      if (i.producto_id !== productoId) return i;
+      const newQty = Math.max(1, Math.min(maxStock, i.cantidad + delta));
+      if (i.cantidad + delta > maxStock) toast.error(`Stock máximo: ${maxStock} unidades`);
+      return { ...i, cantidad: newQty, subtotal: newQty * i.precio_unitario };
+    }));
+    setMontoManual(false);
+  };
+
+  const removeItem = (productoId: string) => {
+    setItems(prev => prev.filter(i => i.producto_id !== productoId));
     setMontoManual(false);
   };
 
@@ -464,14 +513,31 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
           .eq('id', selectedPack.id);
       }
 
-      // Descontar stock de productos seleccionados (recetados + compra opcional)
-      if (selectedProductos.size > 0) {
-        const allProds = [...productosRecetados, ...productosDisponibles];
-        for (const prod of allProds.filter(p => selectedProductos.has(p.id))) {
-          await supabase
-            .from('productos')
-            .update({ stock: Math.max(0, prod.stock - 1) })
-            .eq('id', prod.id);
+      // Registrar productos como venta vinculada + descontar stock
+      if (items.length > 0) {
+        const totalProds = items.reduce((sum, i) => sum + i.subtotal, 0);
+        await supabase.from('ventas').insert([{
+          paciente_id: cita.paciente_id,
+          sucursal_id: sucursalActiva?.id,
+          items: items.map(i => ({
+            producto_id: i.producto_id,
+            nombre: i.nombre,
+            precio_unitario: i.precio_unitario,
+            cantidad: i.cantidad,
+            subtotal: i.subtotal,
+          })),
+          subtotal: totalProds,
+          descuento: 0,
+          total: totalProds,
+          metodo_pago: metodoPago,
+          estado: 'Completada',
+          notas: `Venta desde cobro de cita`,
+        }]);
+        for (const item of items) {
+          const { data: prod } = await supabase.from('productos').select('stock').eq('id', item.producto_id).single();
+          if (prod) {
+            await supabase.from('productos').update({ stock: Math.max(0, prod.stock - item.cantidad) }).eq('id', item.producto_id);
+          }
         }
       }
 
@@ -806,117 +872,117 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
               )}
             </div>
 
-            {/* Productos Recetados (Opcional) */}
-            {productosRecetados.length > 0 && (
-              <div className="animate-in fade-in duration-300">
-                <label className="block text-sm font-bold text-[#004975] mb-2">
-                  <span className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-purple-500" />
-                    Productos Recetados
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">Opcional</span>
-                  </span>
-                </label>
-                <p className="text-[11px] font-bold text-gray-400 mb-3">
-                  El paciente puede elegir comprar estos productos en la clínica.
-                </p>
-                <div className="space-y-2">
-                  {productosRecetados.map(producto => {
-                    const isSelected = selectedProductos.has(producto.id);
-                    const sinStock = producto.stock <= 0;
-                    return (
-                      <button
-                        key={producto.id}
-                        type="button"
-                        disabled={sinStock}
-                        onClick={() => toggleProducto(producto.id)}
-                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${
-                          sinStock
-                            ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed'
-                            : isSelected
-                              ? 'bg-purple-50 border-purple-200 shadow-sm'
-                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                              sinStock
-                                ? 'border-gray-200 bg-gray-100'
-                                : isSelected
-                                  ? 'bg-purple-500 border-purple-500'
-                                  : 'border-gray-300 bg-white'
-                            }`}
-                          >
-                            {isSelected && (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                            )}
-                          </div>
-                          <div>
-                            <span className={`text-sm font-bold ${isSelected ? 'text-[#004975]' : 'text-gray-600'}`}>
-                              {producto.nombre}
-                            </span>
-                            {sinStock && (
-                              <span className="block text-[10px] font-bold text-red-500">Sin stock</span>
-                            )}
-                          </div>
-                        </div>
-                        <span className={`text-sm font-black tabular-nums ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
-                          S/ {producto.precio.toFixed(2)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Agregar Productos */}
+            <div ref={productoRef} className="relative">
+              <label className="block text-sm font-bold text-[#004975] mb-2 flex items-center gap-2">
+                <Package className="w-4 h-4 text-purple-500" />
+                Agregar Productos
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">Opcional</span>
+              </label>
 
-            {/* Productos Disponibles (compra opcional) */}
-            {productosDisponibles.length > 0 && (
-              <div className="animate-in fade-in duration-300">
-                <label className="block text-sm font-bold text-[#004975] mb-2">
-                  <span className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-[#004975]" />
-                    Productos Disponibles
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">Opcional</span>
-                  </span>
-                </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {productosDisponibles.map(producto => {
-                    const isSelected = selectedProductos.has(producto.id);
-                    const sinStock = producto.stock <= 0;
+              {/* Productos Recetados como sugerencias */}
+              {productosRecetados.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <span className="text-xs font-bold text-gray-500 flex items-center h-7">Recetados:</span>
+                  {productosRecetados.map(p => {
+                    const agotado = p.stock <= 0;
                     return (
                       <button
-                        key={producto.id}
+                        key={`sug-${p.id}`}
                         type="button"
-                        disabled={sinStock}
-                        onClick={() => toggleProducto(producto.id)}
-                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${
-                          sinStock ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed'
-                            : isSelected ? 'bg-purple-50 border-purple-200 shadow-sm'
-                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                        disabled={agotado}
+                        onClick={() => !agotado && addItem(p)}
+                        className={`text-[11px] font-bold px-3 h-7 rounded-full border transition-all flex items-center gap-1 ${
+                          agotado ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed' : 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                            sinStock ? 'border-gray-200 bg-gray-100'
-                              : isSelected ? 'bg-purple-500 border-purple-500'
-                              : 'border-gray-300 bg-white'
-                          }`}>
-                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                          </div>
-                          <span className={`text-sm font-bold ${isSelected ? 'text-[#004975]' : 'text-gray-600'}`}>
-                            {producto.nombre}
-                          </span>
-                        </div>
-                        <span className={`text-sm font-black tabular-nums ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
-                          S/ {producto.precio.toFixed(2)}
-                        </span>
+                        <Plus className="w-3 h-3" />
+                        {p.nombre}
                       </button>
                     );
                   })}
                 </div>
+              )}
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input type="text" placeholder="Buscar producto por nombre..."
+                  value={productoSearch}
+                  onChange={(e) => { setProductoSearch(e.target.value); setShowProductoResults(true); }}
+                  onFocus={() => setShowProductoResults(true)}
+                  className="w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#00C288] focus:bg-white outline-none transition-all" />
               </div>
-            )}
+              {showProductoResults && productoSearch.length >= 1 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                  {productoResults.length === 0 ? (
+                    <p className="p-3 text-sm text-gray-400 text-center">Sin resultados</p>
+                  ) : productoResults.map(p => {
+                    const agotado = p.stock <= 0;
+                    return (
+                      <button key={p.id} type="button"
+                        disabled={agotado}
+                        onClick={() => !agotado && addItem(p)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-0 transition-colors flex items-center justify-between ${
+                          agotado ? 'cursor-not-allowed bg-gray-50' : 'hover:bg-[#00C288]/5'
+                        }`}>
+                        <div>
+                          <p className={`font-bold text-sm ${agotado ? 'text-gray-500' : 'text-[#004975]'}`}>{p.nombre}</p>
+                          <p className="text-[11px] font-bold">
+                            {agotado ? <span className="text-red-600 bg-red-100 px-1.5 py-0.5 rounded text-[10px] font-black uppercase">Agotado</span> : <span className="text-gray-400">Stock: {p.stock}</span>}
+                          </p>
+                        </div>
+                        <span className={`font-black text-sm tabular-nums ${agotado ? 'text-gray-400 line-through' : 'text-[#004975]'}`}>S/ {p.precio.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Cart items */}
+              {items.length > 0 && (
+                <div className="mt-3 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-100/50 border-b border-gray-200">
+                    <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]">
+                      {items.length} producto{items.length !== 1 ? 's' : ''} en el cobro
+                    </span>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {items.map(item => {
+                      const maxStock = stockMap[item.producto_id] ?? Infinity;
+                      const atMax = item.cantidad >= maxStock;
+                      return (
+                        <div key={item.producto_id} className="px-4 py-3 flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-[#004975] text-sm truncate">{item.nombre}</p>
+                            <p className="text-[11px] text-gray-400 font-bold">S/ {item.precio_unitario.toFixed(2)} c/u</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onClick={() => updateQty(item.producto_id, -1)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 transition-colors">
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-8 text-center font-black text-[#004975] text-sm tabular-nums">{item.cantidad}</span>
+                            <button type="button" onClick={() => updateQty(item.producto_id, 1)}
+                              disabled={atMax}
+                              className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-colors ${
+                                atMax ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-500'
+                              }`}>
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <span className="font-black text-[#004975] text-sm tabular-nums w-20 text-right">S/ {item.subtotal.toFixed(2)}</span>
+                          <button type="button" onClick={() => removeItem(item.producto_id)}
+                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Monto Total */}
             <div>
@@ -924,9 +990,9 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
                 <label className="block text-sm font-bold text-[#004975]">
                   Monto Total <span className="text-red-500">*</span>
                 </label>
-                {(selectedServicios.size > 0 || selectedProductos.size > 0) && (
+                {(selectedServicios.size > 0 || items.length > 0) && (
                   <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    {montoManual ? '✏️ Editado manualmente' : `${selectedServicios.size} servicio(s)${selectedProductos.size > 0 ? ` + ${selectedProductos.size} producto(s)` : ''}`}
+                    {montoManual ? '✏️ Editado manualmente' : `${selectedServicios.size} servicio(s)${items.length > 0 ? ` + ${items.reduce((s,i)=>s+i.cantidad,0)} producto(s)` : ''}`}
                   </span>
                 )}
               </div>
@@ -982,7 +1048,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
                   const extraServicios = servicios.filter(s => selectedServicios.has(s.id) && !packCoveredIds.has(s.id));
                   const coveredServicios = servicios.filter(s => selectedServicios.has(s.id) && packCoveredIds.has(s.id));
                   const totalExtras = extraServicios.reduce((sum, s) => sum + s.precio_base, 0);
-                  const totalProds = [...productosRecetados, ...productosDisponibles].filter(p => selectedProductos.has(p.id)).reduce((sum, p) => sum + p.precio, 0);
+                  const totalProds = items.reduce((sum, i) => sum + i.subtotal, 0);
                   return (
                     <>
                       {coveredServicios.length > 0 && selectedPack && (() => {
@@ -1012,7 +1078,7 @@ export function CobroDrawer({ isOpen, onClose, onSuccess, cita }: CobroDrawerPro
                       )}
                       {totalProds > 0 && (
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-purple-500">Productos recetados ({selectedProductos.size})</span>
+                          <span className="text-xs font-bold text-purple-500">Productos ({items.reduce((s,i)=>s+i.cantidad,0)})</span>
                           <span className="text-sm font-bold text-purple-600 tabular-nums">S/ {totalProds.toFixed(2)}</span>
                         </div>
                       )}
