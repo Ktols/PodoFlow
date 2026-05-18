@@ -404,7 +404,7 @@ export function PackDrawer({ isOpen, onClose, onSuccess, packEnEdicion }: PackDr
               <div className="flex items-center gap-2">
                 <DatePicker value={fechaInicio} onChange={setFechaInicio} />
                 <span className="text-xs font-bold text-gray-400">a</span>
-                <DatePicker value={fechaFin} onChange={setFechaFin} />
+                <DatePicker value={fechaFin} onChange={setFechaFin} alignRight />
               </div>
               {errors.fechaFin && <p className="text-red-500 text-xs mt-1 font-bold">{errors.fechaFin}</p>}
             </div>

@@ -27,6 +27,7 @@ import { format, startOfDay, endOfDay, subDays, parseISO, startOfMonth } from 'd
 import { es } from 'date-fns/locale';
 import { useBranchStore } from '../stores/branchStore';
 import { useNavigate } from 'react-router-dom';
+import { DatePicker } from '../components/DatePicker';
 import type { ProximaCitaRow } from '../types/agenda';
 
 interface DashboardStats {
@@ -64,6 +65,7 @@ export function Dashboard() {
   const [nextAppointments, setNextAppointments] = useState<ProximaCitaRow[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterDate, setFilterDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
   const fetchData = async () => {
     if (!sucursalActiva?.id) {
@@ -72,8 +74,9 @@ export function Dashboard() {
     }
     
     setIsLoading(true);
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const startOfMonthDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+    const baseDate = parseISO(filterDate);
+    const today = filterDate;
+    const startOfMonthDate = format(startOfMonth(baseDate), 'yyyy-MM-dd');
 
     try {
       const [
@@ -97,15 +100,15 @@ export function Dashboard() {
           .from('pagos')
           .select('monto_total')
           .eq('sucursal_id', sucursalActiva.id)
-          .gte('fecha_pago', startOfDay(new Date()).toISOString())
-          .lte('fecha_pago', endOfDay(new Date()).toISOString()),
+          .gte('fecha_pago', startOfDay(baseDate).toISOString())
+          .lte('fecha_pago', endOfDay(baseDate).toISOString()),
         // Ventas de productos del día
         supabase
           .from('ventas')
           .select('total')
           .eq('sucursal_id', sucursalActiva.id)
-          .gte('created_at', startOfDay(new Date()).toISOString())
-          .lte('created_at', endOfDay(new Date()).toISOString()),
+          .gte('created_at', startOfDay(baseDate).toISOString())
+          .lte('created_at', endOfDay(baseDate).toISOString()),
         supabase
           .from('pacientes')
           .select('*', { count: 'exact', head: true })
@@ -121,13 +124,13 @@ export function Dashboard() {
           .from('pagos')
           .select('monto_total, fecha_pago')
           .eq('sucursal_id', sucursalActiva.id)
-          .gte('fecha_pago', subDays(new Date(), 7).toISOString()),
+          .gte('fecha_pago', subDays(baseDate, 7).toISOString()),
         // Ventas de productos de la última semana
         supabase
           .from('ventas')
           .select('total, created_at')
           .eq('sucursal_id', sucursalActiva.id)
-          .gte('created_at', subDays(new Date(), 7).toISOString()),
+          .gte('created_at', subDays(baseDate, 7).toISOString()),
         supabase
           .from('citas')
           .select(`
@@ -169,7 +172,7 @@ export function Dashboard() {
 
       const chartMap = new Map();
       for (let i = 6; i >= 0; i--) {
-        const d = subDays(new Date(), i);
+        const d = subDays(baseDate, i);
         const key = format(d, 'yyyy-MM-dd');
         chartMap.set(key, { 
           date: key, 
@@ -222,7 +225,7 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [sucursalActiva?.id]);
+  }, [sucursalActiva?.id, filterDate]);
 
   const formatCurrency = (val: number) => `S/ ${val.toFixed(2)}`;
 
@@ -248,12 +251,19 @@ export function Dashboard() {
           <h1 className="text-3xl font-black text-[#004975] tracking-tight">
             ¡Hola, {sucursalActiva?.nombre_comercial}!
           </h1>
-          <p className="text-gray-500 font-medium mt-1">Aquí tienes un resumen de lo que sucede hoy en tu sede.</p>
+          <p className="text-gray-500 font-medium mt-1">Aquí tienes un resumen de lo que sucede en tu sede.</p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="w-36 mr-1 md:w-40 md:mr-2">
+            <DatePicker 
+              value={filterDate}
+              onChange={(val) => val && setFilterDate(val)}
+              placeholder="Fecha"
+            />
+          </div>
           <button 
             onClick={() => navigate('/agenda')}
-            className="p-2.5 bg-white border border-gray-100 rounded-xl text-secondary hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2 font-bold text-sm"
+            className="p-2.5 bg-white border border-gray-100 rounded-xl text-secondary hover:bg-gray-50 transition-all shadow-sm hidden md:flex items-center gap-2 font-bold text-sm"
           >
             <Calendar className="w-4 h-4 text-primary" />
             Ver Agenda
@@ -279,7 +289,7 @@ export function Dashboard() {
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
               <Calendar className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Citas Hoy</span>
+            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Citas</span>
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-3xl font-black text-[#004975]">{stats.todayAppointments}</p>
@@ -296,7 +306,7 @@ export function Dashboard() {
             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-blue-500" />
             </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Ingresos Hoy</span>
+            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Ingresos</span>
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-3xl font-black text-[#004975] tabular-nums">{formatCurrency(totalRevenue)}</p>
@@ -487,7 +497,7 @@ export function Dashboard() {
           <p className="text-3xl font-black tabular-nums">
             {formatCurrency(stats.todayRevenue / (stats.todayAppointments || 1))}
           </p>
-          <p className="text-xs font-medium opacity-40 mt-3">Basado en citas e ingresos de hoy</p>
+          <p className="text-xs font-medium opacity-40 mt-3">Basado en citas e ingresos de la fecha</p>
         </div>
 
         {/* Alertas de Inventario */}
