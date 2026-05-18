@@ -10,9 +10,10 @@ interface DatePickerProps {
   className?: string;
   maxDate?: string;
   minDate?: string;
+  alignRight?: boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", className = "", maxDate, minDate }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", className = "", maxDate, minDate, alignRight = false }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,7 +147,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/AAAA", classN
       {isOpen && (
         <div 
           ref={popoverRef}
-          className={`absolute left-0 w-[280px] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 animate-in zoom-in-95 fade-in duration-200 z-[30000] ${
+          className={`absolute ${alignRight ? 'right-0' : 'left-0'} w-[280px] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 animate-in zoom-in-95 fade-in duration-200 z-[30000] ${
             popoverCoords.position === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
           }`}
         >
