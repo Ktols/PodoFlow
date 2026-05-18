@@ -4,423 +4,191 @@
 [![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk&logoColor=white)](https://clerk.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Recharts](https://img.shields.io/badge/Analytics-Recharts-222222)](https://recharts.org/)
+[![Zustand](https://img.shields.io/badge/State-Zustand-orange)](https://github.com/pmndrs/zustand)
 
-**PodoFlow** es una plataforma SaaS integral diseñada para redes de centros podológicos. Permite gestionar múltiples sedes, centralizar la información de pacientes y especialistas, y analizar el rendimiento operativo a través de tableros inteligentes.
+**PodoFlow** es una plataforma SaaS integral diseñada para redes de centros podológicos. Permite gestionar múltiples sedes, centralizar la información de pacientes y especialistas, registrar la evolución clínica y automatizar la gestión de caja y facturación.
 
-> **Estado actual:** SaaS Multi-sucursales operativo con autenticación Clerk y RBAC dinámico.
+> **Estado actual:** SaaS Multi-sucursales operativo con flujos completos de agenda, clínica, ventas, caja y reportes.
 
 ---
 
 ## 📑 Tabla de Contenidos
-- [Características](#-características)
+- [Flujos Principales de Negocio](#-flujos-principales-de-negocio)
+  - [1. Flujo de Atención Clínica](#1-flujo-de-atención-clínica)
+  - [2. Flujo de Caja y Cobros](#2-flujo-de-caja-y-cobros)
+  - [3. Arquitectura Multi-Sucursal](#3-arquitectura-multi-sucursal)
 - [Arquitectura y Stack Tecnológico](#-arquitectura-y-stack-tecnológico)
-- [Gestión SaaS y Roles](#-gestión-saas-y-roles)
-- [Instalación](#-instalación)
+- [Instalación y Configuración](#-instalación-y-configuración)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Roadmap](#-roadmap)
+- [Documentación Técnica](#-documentación-técnica)
 
 ---
 
-## ✨ Características
+## 🔄 Flujos Principales de Negocio
 
-### 📊 Dashboard Profesional (Analíticas)
-- **KPIs en Tiempo Real:** Visualización de citas del día, ingresos recaudados, nuevos pacientes y pagos pendientes.
-- **Gráficas Inteligentes:** Rendimiento semanal dinámico mediante gráficas de área (**Recharts**) filtradas por sucursal.
-- **Próximas Citas:** Monitoreo en vivo de los siguientes pacientes a atender con estados actualizados.
+El sistema está orientado a procesos para asegurar una experiencia sin fricciones entre la recepción, los podólogos y la administración.
 
-### 🏢 Arquitectura Multi-Sede
-- **Selector de Sucursal:** Permite cambiar instantáneamente entre sedes para gestionar datos aislados.
-- **Gestión de Tiendas:** Configuración de RUC, Razón Social, Dirección y WhatsApp específico por sede.
-- **Aislamiento de Datos:** Seguridad mediante filtros de `sucursal_id` y RLS en Supabase.
+### 1. Flujo de Atención Clínica
 
-### 🔐 Autenticación y RBAC (Clerk)
-- **Login Unificado:** Acceso seguro mediante Google o Microsoft.
-- **Roles Definidos:** 
-  - 👑 **Dueño:** Acceso global a todas las sedes y configuración de personal.
-  - 📋 **Administrativo:** Gestión operativa de sedes asignadas.
-  - 🩺 **Podólogo:** Acceso exclusivo a su agenda y atenciones clínicas.
+Controla el ciclo de vida de un paciente desde que reserva un turno hasta que el especialista registra su historia clínica.
 
-### 📅 Agenda y Clínica Avanzada
-- **Notificaciones Dinámicas:** Plantillas de WhatsApp que se adaptan automáticamente a los datos de la sede seleccionada.
-- **Comprobantes Profesionales:** Generación de tickets de pago con identidad visual de la sucursal activa.
-- **Flujo Clínico:** Registro detallado de evoluciones, tratamientos y antecedentes.
+```mermaid
+graph TD
+    A[Paciente contacta] --> B[Recepción agenda Cita]
+    B --> C{Estado Cita}
+    C -->|Programada| D[Día de la cita]
+    D -->|Llega paciente| E[Recepción marca: En Sala de Espera]
+    E --> F[Podólogo ve la cita lista]
+    F -->|Click Atender| G[Apertura de Historia Clínica]
+    G --> H[Registro de Tratamientos y Recetas]
+    H --> I[Guardar Atención]
+    I --> J((Cita pasa a: Atendida))
+    
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef action fill:#00C288,color:white,stroke:#009966;
+    classDef final fill:#004975,color:white,stroke:#003355;
+    
+    class B,E,F,H action;
+    class J final;
+```
+
+**Puntos clave:**
+- **Inmutabilidad:** El estado "Atendida" no se puede marcar a mano; solo se activa si el especialista llena el formulario clínico.
+- **Doble reserva:** Previene asignar dos pacientes al mismo especialista en la misma franja.
+
+### 2. Flujo de Caja y Cobros
+
+Conecta automáticamente las atenciones clínicas con el módulo de pagos, permitiendo agrupar servicios, productos recetados y packs promocionales.
+
+```mermaid
+graph TD
+    A(Cita Atendida) --> B[Caja: Ver Cobros Pendientes]
+    B --> C[Iniciar Cobro]
+    C --> D{Servicios brindados}
+    C --> E{Productos recetados}
+    D --> F[Totalización]
+    E --> F
+    F --> G[Aplicar Packs o Promociones]
+    G --> H[Validar Medio de Pago]
+    H --> I[Generar Venta y Pago]
+    I --> J[Impresión de Ticket Electrónico]
+    J --> K((Ingreso registrado en Dashboard))
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef action fill:#00C288,color:white,stroke:#009966;
+    classDef payment fill:#eab308,color:white,stroke:#ca8a04;
+    
+    class C,G,H action;
+    class I,J,K payment;
+```
+
+**Puntos clave:**
+- **Extracción Automática:** La caja sabe exactamente qué cobrar leyendo los tratamientos y recetas de la historia clínica recién guardada.
+- **Desglose de Packs:** Si un paciente compra un pack de sesiones, el ticket detalla cada servicio incluido con precio S/0.00 como constancia.
+
+### 3. Arquitectura Multi-Sucursal
+
+Garantiza el aislamiento de la información y la gestión de permisos a nivel empresarial (RBAC).
+
+```mermaid
+flowchart LR
+    User[Usuario Clerk] --> Auth{Verificar Rol}
+    Auth -->|Dueño / Admin| S[Selector de Sucursal]
+    Auth -->|Podólogo| P[Sucursal Asignada Fija]
+    
+    S --> S1[(Datos Sede Lima)]
+    S --> S2[(Datos Sede Callao)]
+    P --> S1
+    
+    S1 -.-> |Aislamiento| RLS[Supabase RLS]
+    S2 -.-> |Aislamiento| RLS
+```
 
 ---
 
 ## 🏗 Arquitectura y Stack Tecnológico
 
-| Capa | Tecnología | Propósito |
-|------|-----------|-----------|
-┌─────────────────────────────────────────────────┐
-│                   App.tsx                       │
-│            BrowserRouter + Toaster              │
-│                                                 │
-│  ┌─────────────────────────────────────────┐    │
-│  │            MainLayout                    │    │
-│  │  ┌──────────┐  ┌──────────────────┐     │    │
-│  │  │ Sidebar  │  │     Header       │     │    │
-│  │  │          │  ├──────────────────┤     │    │
-│  │  │ - Dashboard │ │   <Outlet />     │     │    │
-│  │  │ - Agenda │  │                  │     │    │
-│  │  │ - Pacientes│ │  Rutas hijas:    │     │    │
-│  │  │ - Personal │ │  /              │     │    │
-│  │  │ - Caja   │  │  /agenda         │     │    │
-│  │  │          │  │  /pacientes      │     │    │
-│  │  │          │  │  /pacientes/:id/ │     │    │
-│  │  │          │  │    historia      │     │    │
-│  │  │          │  │  /especialistas  │     │    │
-│  │  │          │  │  /caja           │     │    │
-│  │  └──────────┘  └──────────────────┘     │    │
-│  └─────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────┘
-```
+La aplicación es una Single Page Application (SPA) construida sobre las tecnologías más modernas del ecosistema de React.
+
+* **Frontend Framework:** React 19 + Vite (Rápido HMR y build optimizado)
+* **Estilos & UI:** Tailwind CSS v3 + Lucide React (Íconos)
+* **Gestión de Estado:** Zustand (Estado global de sucursal activa y UI) + React Hook Form (Manejo de formularios)
+* **Validación:** Zod (Validación de esquemas y tipado estricto)
+* **Base de Datos & Backend:** Supabase (PostgreSQL, Row-Level Security)
+* **Autenticación:** Clerk (B2B SaaS auth con soporte para roles y organizaciones)
+* **Gráficas y Exportación:** Recharts, html2canvas, SheetJS (Exportaciones Excel)
 
 ---
 
-## 📋 Requisitos Previos
+## 🚀 Instalación y Configuración
 
-- **Node.js** >= 18.x
-- **npm** >= 9.x
-- Una cuenta en **[Supabase](https://supabase.com/)** con un proyecto creado
-- Las tablas de base de datos configuradas (ver sección [Base de Datos](#-base-de-datos-supabase))
-
----
-
-## 🚀 Instalación
-
+### 1. Clonar e Instalar
 ```bash
-# 1. Clonar el repositorio
 git clone https://github.com/tu-usuario/PodoFlow.git
 cd PodoFlow
-
-# 2. Instalar dependencias
 npm install
-
-# 3. Configurar variables de entorno (ver sección siguiente)
-cp .env.example .env
-
-# 4. Ejecutar en modo desarrollo
-npm run dev
 ```
 
-### Scripts disponibles
-
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Inicia el servidor de desarrollo con HMR (puerto 5173) |
-| `npm run build` | Compila TypeScript y genera build de producción en `/dist` |
-| `npm run preview` | Previsualiza el build de producción localmente |
-| `npm run lint` | Ejecuta ESLint para análisis estático de código |
-
----
-
-## 🔐 Variables de Entorno
-
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+### 2. Variables de Entorno
+Crea un archivo `.env.local` en la raíz del proyecto (nunca lo subas a GitHub):
 
 ```env
-# Supabase - Credenciales del proyecto
+# Clerk Auth
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+
+# Supabase Database
 VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...tu_clave_anonima
+VITE_SUPABASE_ANON_KEY=eyJ...
 ```
 
-> **⚠️ Importante:** Nunca subas el archivo `.env` al repositorio. Asegúrate de que esté incluido en `.gitignore`.
-
-El cliente de Supabase se inicializa en `src/lib/supabase.ts` y es importado por todos los módulos que necesiten acceso a datos.
-
----
-
-## 🗄 Base de Datos (Supabase)
-
-La aplicación requiere 4 tablas principales en tu proyecto de Supabase. A continuación se documenta el esquema completo:
-
-### Tabla: `pacientes`
-
-| Columna | Tipo | Restricciones | Descripción |
-|---------|------|---------------|-------------|
-| `id` | `UUID` | PK, auto-generado | Identificador único |
-| `tipo_documento` | `ENUM('DNI','CE','PASAPORTE')` | NOT NULL, default `'DNI'` | Tipo de documento de identidad |
-| `numero_documento` | `VARCHAR(12)` | UNIQUE, NOT NULL | Número del documento |
-| `nombres` | `VARCHAR(255)` | NOT NULL | Nombres del paciente |
-| `apellidos` | `VARCHAR(255)` | NOT NULL | Apellidos del paciente |
-| `telefono` | `VARCHAR(20)` | nullable | Número de celular (formato 9 dígitos Perú) |
-| `fecha_nacimiento` | `DATE` | nullable | Fecha de nacimiento |
-| `sexo` | `VARCHAR` | nullable | Sexo del paciente |
-| `alergias_alertas` | `TEXT` | nullable | Alertas generales de alergias |
-| `diabetes` | `BOOLEAN` | default `false` | Antecedente de diabetes |
-| `hipertension` | `BOOLEAN` | default `false` | Antecedente de hipertensión |
-| `enfermedad_vascular` | `BOOLEAN` | default `false` | Antecedente de enfermedad vascular |
-| `tratamiento_oncologico` | `BOOLEAN` | default `false` | En tratamiento oncológico |
-| `alergias_detalle` | `TEXT` | nullable | Detalle de alergias específicas |
-| `created_at` | `TIMESTAMPTZ` | auto-generado | Fecha de creación del registro |
-
-**Índices:** `numero_documento`, `apellidos`
-
-### Tabla: `podologos`
-
-| Columna | Tipo | Restricciones | Descripción |
-|---------|------|---------------|-------------|
-| `id` | `UUID` | PK, auto-generado | Identificador único |
-| `nombres` | `VARCHAR` | NOT NULL | Nombre completo del especialista |
-| `dni` | `VARCHAR` | NOT NULL | Documento de identidad |
-| `especialidad` | `VARCHAR` | nullable | Área de especialización |
-| `telefono` | `VARCHAR` | nullable | Teléfono de contacto |
-| `correo` | `VARCHAR` | nullable | Correo electrónico |
-| `color_etiqueta` | `VARCHAR` | NOT NULL | Color HEX para identificación visual en agenda |
-| `estado` | `BOOLEAN` | default `true` | Activo (`true`) / Inactivo (`false`) |
-
-### Tabla: `citas`
-
-| Columna | Tipo | Restricciones | Descripción |
-|---------|------|---------------|-------------|
-| `id` | `UUID` | PK, auto-generado | Identificador único |
-| `paciente_id` | `UUID` | FK → `pacientes.id` | Paciente asignado |
-| `podologo_id` | `UUID` | FK → `podologos.id` | Especialista asignado |
-| `fecha_cita` | `DATE` | NOT NULL | Fecha de la cita |
-| `hora_cita` | `TIME` | NOT NULL | Hora de inicio del turno |
-| `motivo` | `TEXT` | NOT NULL | Motivo de consulta |
-| `estado` | `VARCHAR` | NOT NULL | Estado actual del turno (ver estados válidos abajo) |
-| `created_at` | `TIMESTAMPTZ` | auto-generado | Timestamp de creación |
-
-**Estados válidos de la cita:**
-
-| Estado | Tipo | Descripción |
-|--------|------|-------------|
-| `Programada` | Inicial | Cita recién creada, pendiente de confirmar |
-| `Confirmada` | Intermedio | Paciente confirmó asistencia |
-| `En Sala de Espera` | Intermedio | Paciente llegó y espera ser atendido |
-| `Atendida` | Final ❌ | Atención clínica completada (solo vía flujo clínico) |
-| `Cancelada` | Final ❌ | Turno cancelado (requiere confirmación modal) |
-| `No Asistió` | Final ❌ | Paciente no se presentó (requiere confirmación modal) |
-
-> Los estados marcados como **Final ❌** son irreversibles: la tarjeta se atenúa y los controles se deshabilitan.
-
-### Tabla: `atenciones`
-
-| Columna | Tipo | Restricciones | Descripción |
-|---------|------|---------------|-------------|
-| `id` | `UUID` | PK, auto-generado | Identificador único |
-| `paciente_id` | `UUID` | FK → `pacientes.id` | Paciente atendido |
-| `podologo_id` | `UUID` | FK → `podologos.id` | Especialista que atendió |
-| `cita_id` | `UUID` | FK → `citas.id`, nullable | Cita asociada (si vino desde la agenda) |
-| `motivo_consulta` | `TEXT` | NOT NULL | Motivo de consulta |
-| `tratamiento` | `TEXT` | nullable | Observaciones generales / tratamiento |
-| `indicaciones` | `TEXT` | nullable | Indicaciones post-atención |
-| `evaluacion_piel` | `TEXT[]` | nullable | Hallazgos clínicos en piel (array de strings) |
-| `evaluacion_unas` | `TEXT[]` | nullable | Hallazgos clínicos en uñas (array de strings) |
-| `tratamientos_realizados` | `TEXT[]` | NOT NULL | Procedimientos aplicados (mínimo 1) |
-| `fecha_atencion` | `TIMESTAMPTZ` | auto-generado | Timestamp de la atención |
-
-### Relaciones (Foreign Keys)
-
-```
-pacientes ──┐
-             ├──► citas ◄── podologos
-             │
-             ├──► atenciones ◄── podologos
-             │         │
-             │         └──── citas (opcional)
+### 3. Entorno Local
+```bash
+npm run dev
 ```
 
 ---
 
 ## 📂 Estructura del Proyecto
 
-```
+El código está organizado por *features* (módulos) para que sea fácil escalar:
+
+```text
 src/
-├── main.tsx                          # Entry point de React
-├── App.tsx                           # Router principal + Toaster global
-├── App.css                           # Estilos globales legacy (Vite template)
-├── index.css                         # Tailwind directives (@tailwind base/components/utilities)
-│
-├── lib/
-│   └── supabase.ts                   # Cliente Supabase (singleton)
-│
-├── config/
-│   └── clinicData.ts                 # Datos estáticos de la clínica (nombre, dirección, teléfono)
-│
-├── components/
-│   ├── WhatsAppIcon.tsx              # Componente SVG del ícono de WhatsApp
-│   └── layout/
-│       ├── MainLayout.tsx            # Shell principal: Sidebar + Header + <Outlet />
-│       ├── Sidebar.tsx               # Navegación lateral con rutas
-│       └── Header.tsx                # Barra superior
-│
-└── pages/
-    ├── Dashboard.tsx                 # Página de inicio (resumen)
-    ├── Caja.tsx                      # Módulo de caja (placeholder)
-    │
-    ├── agenda/
-    │   ├── AgendaPage.tsx            # ★ Vista principal de la agenda diaria
-    │   ├── schemas/
-    │   │   └── citaSchema.ts         # Esquema Zod para validación de citas
-    │   └── components/
-    │       └── CitaDrawer.tsx         # Drawer lateral para crear/editar citas
-    │
-    ├── pacientes/
-    │   ├── PacientesPage.tsx         # Listado y directorio de pacientes
-    │   ├── HistoriaClinicaPage.tsx   # ★ Ficha clínica + timeline de evoluciones
-    │   ├── schemas/
-    │   │   ├── pacienteSchema.ts     # Esquema Zod para pacientes
-    │   │   └── atencionSchema.ts     # Esquema Zod para atenciones/evoluciones
-    │   └── components/
-    │       ├── PacienteDrawer.tsx    # Drawer para crear/editar pacientes
-    │       └── AtencionDrawer.tsx    # Drawer para registrar evoluciones clínicas
-    │
-    └── especialistas/
-        ├── EspecialistasPage.tsx     # Directorio y gestión de personal
-        ├── schemas/
-        │   └── especialistaSchema.ts # Esquema Zod para especialistas
-        └── components/
-            └── EspecialistaDrawer.tsx # Drawer para crear/editar especialistas
+├── components/          # UI Components reusables (Botones, DatePickers, Modales)
+├── config/              # Constantes globales (Ej. Configuración de Paginación)
+├── hooks/               # Custom React hooks transversales
+├── lib/                 # Inicialización de clientes 3rd party (Supabase, Utils)
+├── pages/               # Vistas principales divididas por módulo de negocio:
+│   ├── agenda/          # Flujo de Citas (Calendario, filtros, drag&drop)
+│   ├── caja/            # Flujo Financiero (Puntos de venta, reportes, caja registradora)
+│   ├── pacientes/       # Flujo Clínico (Fichas, historia médica, evoluciones)
+│   ├── configuracion/   # Administración (Servicios, Promociones, Packs)
+│   ├── especialistas/   # Directorio RRHH
+│   └── Dashboard.tsx    # Analíticas y KPIs
+├── stores/              # Zustand stores (Ej. branchStore para Multi-sede)
+└── types/               # Tipos TypeScript y entidades de la Base de Datos
 ```
 
 ---
 
-## 📦 Módulos y Funcionalidades
+## 📖 Documentación Técnica
 
-### Agenda (`/agenda`) — `AgendaPage.tsx`
+Para información profunda sobre la estructura de la base de datos (PostgreSQL), relaciones entre tablas, políticas de seguridad (RLS), convenciones de código y jerarquías CSS (Z-index), consulta el archivo de detalles técnicos:
 
-El módulo más complejo del sistema. Gestiona el ciclo de vida completo de las citas.
-
-**Componentes clave:**
-- **Date Navigator:** Selector de día con botones anterior/siguiente
-- **Barra de Filtros:** Búsqueda por texto, filtro por especialista, filtro por estado
-- **Toggle Global:** Switch para activar búsqueda histórica sin límite de fecha
-- **Tarjetas de Cita:** Cards con color-coding por estado, indicador "En Curso", badge "Sin Resolver"
-- **CitaDrawer:** Panel lateral con formulario de creación/edición de citas
-- **Modal de Confirmación:** Diálogo personalizado para estados irreversibles
-
-**Flujo de estados:**
-```
-Programada → Confirmada → En Sala de Espera → [Botón "Atender"] → Atendida
-     │            │              │
-     └────────────┴──────────────┴──→ Cancelada / No Asistió
-```
-
-**Smart Features:**
-- El horario sugiere automáticamente el próximo slot libre al crear citas hoy
-- Validación de doble reserva: no permite agendar al mismo especialista en la misma fecha/hora
-- Slots de 30 minutos disponibles de 08:00 AM a 10:00 PM
-
-### Pacientes (`/pacientes`) — `PacientesPage.tsx`
-
-**Funcionalidades:**
-- Tabla con búsqueda en tiempo real
-- Drawer de creación/edición con validación condicional (DNI vs CE vs Pasaporte)
-- Acceso a historia clínica por paciente
-
-### Historia Clínica (`/pacientes/:id/historia`) — `HistoriaClinicaPage.tsx`
-
-**Funcionalidades:**
-- Ficha del paciente con datos personales y antecedentes
-- Timeline de evoluciones clínicas ordenadas cronológicamente
-- Drawer de nueva atención con evaluación clínica y tratamientos
-- Entrada directa desde la Agenda (botón "Atender" con `cita_id` pre-cargado)
-
-### Especialistas (`/especialistas`) — `EspecialistasPage.tsx`
-
-**Funcionalidades:**
-- Directorio con indicadores de color y estado
-- CRUD completo con validación de seguridad en inactivación
-- Solo personal activo aparece en los selectores de la agenda
-
----
-
-## ⚖️ Reglas de Negocio
-
-Estas reglas están implementadas en el frontend y deben respetarse al contribuir:
-
-1. **Estado "Atendida" no es seleccionable manualmente.** Solo se activa cuando el especialista completa una atención clínica desde el botón "Atender" en la Agenda.
-
-2. **Los estados "Cancelada" y "No Asistió" siempre requieren confirmación modal.** Nunca se procesan con un simple cambio del `<select>`.
-
-3. **Los estados finales son irreversibles.** Una vez que una cita está en `Atendida`, `Cancelada` o `No Asistió`, los controles de edición se deshabilitan visualmente.
-
-4. **Validación de doble reserva.** No se puede asignar al mismo especialista dos citas en la misma fecha y hora. Las citas en estado `Cancelada` o `CANCELADA` se excluyen de esta validación (manejo de case-sensitivity).
-
-5. **Protección de inactivación.** Un especialista no puede marcarse como inactivo si tiene citas en estados abiertos (`Programada`, `Confirmada`, `En Sala de Espera`).
-
-6. **Turnos Fantasmas.** Una cita se considera "Sin Resolver" si su fecha ya pasó, o si es de hoy pero ya transcurrió más de 1 hora, y sigue en un estado no-final.
-
-7. **Formato de teléfono Perú.** Los números de 9 dígitos se anteponen con `51` para la URL de WhatsApp (`wa.me/51XXXXXXXXX`).
+👉 **[Ver Documentación Técnica y Base de Datos (TECHNICAL_DETAILS.md)](./TECHNICAL_DETAILS.md)**
 
 ---
 
 ## 🤝 Guía de Contribución
 
-### Cómo empezar
-
 1. Haz fork del repositorio
 2. Crea una rama para tu feature: `git checkout -b feature/nombre-feature`
-3. Realiza tus cambios siguiendo las convenciones de código
-4. Haz commit con mensajes descriptivos: `git commit -m "feat: agregar módulo de reportes"`
-5. Haz push a tu rama: `git push origin feature/nombre-feature`
-6. Abre un Pull Request describiendo los cambios
-
-### Convención de commits
-
-| Prefijo | Uso |
-|---------|-----|
-| `feat:` | Nueva funcionalidad |
-| `fix:` | Corrección de bug |
-| `refactor:` | Refactorización sin cambio funcional |
-| `style:` | Cambios de UI/CSS |
-| `docs:` | Documentación |
-| `chore:` | Tareas de mantenimiento |
-
----
-
-## 📐 Convenciones de Código
-
-### Patrones importantes
-
-- **Formularios:** Usar siempre `react-hook-form` + `zodResolver` con esquemas en `schemas/`. Nunca manejar estado de formulario manualmente.
-- **Drawers (Paneles laterales):** Todos usan `fixed inset-0 z-[9999]` como contenedor. Si un modal se renderiza *encima* de un drawer, usar `z-[20050]` o superior.
-- **Consultas Supabase:** Ejecutar en `useEffect` o en event handlers `async`. Usar `toast.success()` / `toast.error()` para feedback.
-- **Estado de citas:** Siempre comparar con strings exactos incluyendo mayúsculas y tildes: `'No Asistió'`, `'En Sala de Espera'`, `'CANCELADA'`.
-
-### Jerarquía de Z-Index
-
-| Capa | Z-Index | Elemento |
-|------|---------|----------|
-| Layout (Header/Sidebar) | `z-30` - `z-40` | Navegación principal |
-| Drawers principales | `z-[9999]` | Paneles laterales de CRUD |
-| Modales secundarios | `z-[20050]` | Modales que se abren sobre drawers |
-| Toasts (Notificaciones) | `z-[99999]` | Mensajes del sistema, siempre encima |
-
-### Paleta de colores del sistema
-
-| Nombre | Hex | Uso |
-|--------|-----|-----|
-| Primary (Verde) | `#00C288` | Acciones positivas, badges activos |
-| Secondary (Azul oscuro) | `#004975` | Sidebar, encabezados, tipografía primaria |
-| Danger | `red-500` | Cancelaciones, alertas críticas |
-| Warning | `orange-500` | Estado "En Sala de Espera" |
-| Muted | `slate-600` | Estado "No Asistió" |
-
----
-
-## 🗺 Roadmap
-
-- [ ] **Módulo de Caja:** Registro de pagos y facturación por atención
-- [ ] **Dashboard con métricas:** KPIs de citas del día, inasistencias y productividad por especialista
-- [ ] **Autenticación:** Login con Supabase Auth + roles (Admin / Recepción / Especialista)
-- [ ] **RLS (Row Level Security):** Políticas de seguridad a nivel de base de datos
-- [ ] **Reportes exportables:** Generación de PDF de historial clínico y estadísticas
-- [ ] **Notificaciones push:** Recordatorios automáticos 24h antes de la cita
-- [ ] **Modo responsive:** Optimización completa para tablets y móviles
-- [ ] **Multi-sucursal:** Soporte para gestión de múltiples sedes
+3. Realiza tus cambios. Usa convenciones de commits (`feat:`, `fix:`, `refactor:`).
+4. Haz push a tu rama: `git push origin feature/nombre-feature`
+5. Abre un Pull Request describiendo el flujo de negocio que estás afectando.
 
 ---
 
 ## 📄 Licencia
 
 Este proyecto está bajo la **Licencia MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
-
----
-
-<p align="center">
-  Desarrollado con ❤️ para la comunidad de especialistas en podología
-</p>

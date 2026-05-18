@@ -17,6 +17,7 @@ export function PacientesPage() {
   const [selectedPatient, setSelectedPatient] = useState<Paciente | null>(null);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pacientesConCreditos, setPacientesConCreditos] = useState<Record<string, number>>({}); // paciente_id → sesiones restantes
   const [searchTerm, setSearchTerm] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -79,6 +80,21 @@ export function PacientesPage() {
       console.error("Error cargando pacientes:", error);
       toast.error('Error al cargar los pacientes');
     }
+
+    // Fetch créditos activos de packs de sesiones
+    const { data: creditosData } = await supabase
+      .from('pack_creditos')
+      .select('paciente_id, sesiones_total, sesiones_usadas')
+      .eq('estado', 'activo');
+    if (creditosData) {
+      const map: Record<string, number> = {};
+      creditosData.forEach((c: { paciente_id: string; sesiones_total: number; sesiones_usadas: number }) => {
+        const restantes = c.sesiones_total - c.sesiones_usadas;
+        map[c.paciente_id] = (map[c.paciente_id] || 0) + restantes;
+      });
+      setPacientesConCreditos(map);
+    }
+
     setIsLoading(false);
   };
 
@@ -243,11 +259,19 @@ export function PacientesPage() {
                       {(() => {
                         const visits = visitCounts[paciente.id] || 0;
                         const cat = getPatientCategory(visits);
+                        const sesRestantes = pacientesConCreditos[paciente.id] || 0;
                         return (
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${cat.color}`}>
-                            {cat.label}
-                            <span className="ml-1.5 text-[9px] font-bold opacity-60 normal-case">({visits} vis.)</span>
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${cat.color}`}>
+                              {cat.label}
+                              <span className="ml-1.5 text-[9px] font-bold opacity-60 normal-case">({visits} vis.)</span>
+                            </span>
+                            {sesRestantes > 0 && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                {sesRestantes} ses. restantes
+                              </span>
+                            )}
+                          </div>
                         );
                       })()}
                     </td>

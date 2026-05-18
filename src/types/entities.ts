@@ -166,6 +166,7 @@ export interface CitaCaja {
   estado: string;
   adelanto?: number;
   adelanto_metodo_pago?: string | null;
+  pack_id?: string | null;
   pacientes: {
     nombres: string;
     apellidos: string;
@@ -185,6 +186,7 @@ export interface CitaParaCobro {
   motivo: string;
   adelanto?: number;
   adelanto_metodo_pago?: string | null;
+  pack_id?: string | null;
   pacientes: {
     nombres: string;
     apellidos: string;
@@ -200,4 +202,61 @@ export interface Rol {
   id: string;
   nombre: string;
   descripcion: string;
+}
+
+// ── Packs y Promociones ──
+
+export type PackTipo = 'pack_servicios' | 'pack_sesiones_prepago' | 'pack_sesiones_fraccionado';
+
+export interface Pack {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  tipo: PackTipo;
+  precio_pack: number | null;
+  descuento_porcentaje: number | null;
+  descuento_monto: number | null;
+  total_sesiones: number | null;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+  stock_total: number | null;
+  stock_usado: number | null;
+  estado: boolean;
+  sucursal_id: string;
+  created_at: string;
+  pack_items?: PackItem[];
+}
+
+export interface PackItem {
+  id: string;
+  pack_id: string;
+  servicio_id: string | null;
+  producto_id: string | null;
+  cantidad: number;
+  servicios?: { id: string; nombre: string; precio_base: number } | null;
+  productos?: { id: string; nombre: string; precio: number } | null;
+}
+
+export interface PackCredito {
+  id: string;
+  pack_id: string;
+  paciente_id: string;
+  sesiones_total: number;
+  sesiones_usadas: number;
+  fecha_compra: string;
+  pago_id: string | null;
+  sucursal_id: string;
+  estado: 'activo' | 'completado' | 'cancelado';
+  packs_promociones?: { nombre: string; tipo: string; precio_pack: number | null } | null;
+  pack_sesiones_log?: PackSesionLog[];
+}
+
+export interface PackSesionLog {
+  id: string;
+  credito_id: string;
+  sesion_numero: number;
+  fecha_uso: string;
+  cita_id: string | null;
+  pago_id: string | null;
+  monto_pagado: number;
 }

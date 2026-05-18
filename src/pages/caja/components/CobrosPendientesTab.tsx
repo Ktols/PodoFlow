@@ -169,6 +169,7 @@ export function CobrosPendientesTab() {
         estado,
         adelanto,
         adelanto_metodo_pago,
+        pack_id,
         pacientes (
           nombres,
           apellidos,
@@ -298,6 +299,83 @@ export function CobrosPendientesTab() {
       ticketItems = [{ nombre: 'Servicio Podológico', precio: pago.monto_total }];
     }
 
+    // Si la cita tiene pack, desglosar: pack como item + servicios extra
+    let packNombre: string | undefined;
+    if (cita.pack_id) {
+      const { data: packData } = await supabase
+        .from('packs_promociones')
+        .select('nombre, tipo, precio_pack, total_sesiones, pack_items (servicio_id, producto_id, cantidad)')
+        .eq('id', cita.pack_id)
+        .single();
+        
+      if (packData) {
+        packNombre = packData.nombre;
+        
+        const packServiceIds = new Set<string>();
+        const packProductMap = new Map<string, number>();
+        (packData.pack_items || []).forEach((i: any) => {
+          if (i.servicio_id) packServiceIds.add(i.servicio_id);
+          if (i.producto_id) packProductMap.set(i.producto_id, i.cantidad || 1);
+        });
+
+        const packServiceNames = new Set<string>();
+        const packProductNames = new Set<string>();
+        const packSubItems: typeof ticketItems = [];
+
+        if (packServiceIds.size > 0) {
+          const { data: srvNames } = await supabase
+            .from('servicios')
+            .select('id, nombre')
+            .in('id', Array.from(packServiceIds));
+          if (srvNames) {
+            srvNames.forEach(s => {
+              packServiceNames.add(s.nombre);
+              packSubItems.push({ nombre: `  ↳ ${s.nombre}`, precio: 0, cantidad: 1, tipo: 'servicio' });
+            });
+          }
+        }
+
+        if (packProductMap.size > 0) {
+          const { data: prodNames } = await supabase
+            .from('productos')
+            .select('id, nombre')
+            .in('id', Array.from(packProductMap.keys()));
+          if (prodNames) {
+            prodNames.forEach(p => {
+              packProductNames.add(p.nombre);
+              packSubItems.push({ nombre: `  ↳ ${p.nombre}`, precio: 0, cantidad: packProductMap.get(p.id) || 1, tipo: 'producto' });
+            });
+          }
+        }
+
+        // Filter out services and products that are part of the pack from the extra items
+        const extrasByName: typeof ticketItems = [];
+        const productosExtra: typeof ticketItems = [];
+        
+        for (const item of ticketItems) {
+          if (item.tipo === 'producto') {
+            if (!packProductNames.has(item.nombre)) productosExtra.push(item);
+          } else {
+            if (!packServiceNames.has(item.nombre)) extrasByName.push(item);
+          }
+        }
+
+        // Precio del pack = total pagado - suma de extras
+        const totalExtras = extrasByName.reduce((s, i) => s + i.precio * (i.cantidad || 1), 0)
+          + productosExtra.reduce((s, i) => s + i.precio * (i.cantidad || 1), 0);
+        const packPrecio = Math.max(0, pago.monto_total - totalExtras);
+
+        const packItem = {
+          nombre: packData.nombre,
+          precio: packPrecio,
+          cantidad: 1,
+          tipo: 'servicio' as const,
+        };
+
+        ticketItems = [packItem, ...packSubItems, ...extrasByName, ...productosExtra];
+      }
+    }
+
     setTicketData({
       numeroTicket: pago.numero_ticket,
       pacienteNombre: `${cita.pacientes.nombres} ${cita.pacientes.apellidos}`,
@@ -309,6 +387,7 @@ export function CobrosPendientesTab() {
       metodoPago: pago.metodo_pago,
       codigoReferencia: pago.codigo_referencia,
       especialista: cita.podologos?.nombres,
+      packNombre,
     });
     setTicketOpen(true);
   };
@@ -692,6 +771,10 @@ export function CobrosPendientesTab() {
                               Imprimir Ticket
                             </button>
                           </div>
+                        ) : cita.estado !== 'Atendida' ? (
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-3 py-2 rounded-lg">
+                            Pendiente de atención
+                          </span>
                         ) : (
                           <button
                             onClick={() => handleRegistrarCobro(cita)}

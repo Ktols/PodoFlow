@@ -39,3 +39,9 @@ export const TIME_OPTIONS = [
   const h12 = (hNum % 12) || 12;
   return { value: time, label: `${h12.toString().padStart(2, '0')}:${m} ${ampm}` };
 });
+
+export const PACK_TYPES = [
+  { value: 'pack_servicios', label: 'Pack de Servicios', desc: 'Combina servicios con precio especial' },
+  { value: 'pack_sesiones_prepago', label: 'Pack Sesiones (Prepago)', desc: 'Varias sesiones pagadas por adelantado' },
+  { value: 'pack_sesiones_fraccionado', label: 'Pack Sesiones (Fraccionado)', desc: 'Varias sesiones con precio por sesion reducido' },
+] as const;
