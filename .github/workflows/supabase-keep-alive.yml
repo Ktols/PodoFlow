@@ -1,0 +1,58 @@
+name: Supabase Keep-Alive Healthcheck
+
+on:
+  schedule:
+    # Se ejecuta a las 12:00 UTC cada 3 días (evita la suspensión por inactividad de 7 días)
+    - cron: '0 12 */3 * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña Actions en GitHub
+
+jobs:
+  ping:
+    name: Keep-Alive Ping a Supabase
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validar secretos configurados
+        id: validate-secrets
+        run: |
+          URL="${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}"
+          KEY="${{ secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}"
+
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::❌ Faltan los secretos en GitHub. Configura SUPABASE_URL (o VITE_SUPABASE_URL) y SUPABASE_ANON_KEY (o VITE_SUPABASE_ANON_KEY) en Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
+          # Eliminar posible barra final de la URL
+          URL="${URL%/}"
+
+          echo "SUPABASE_URL=$URL" >> $GITHUB_ENV
+          echo "::add-mask::$KEY"
+          echo "SUPABASE_ANON_KEY=$KEY" >> $GITHUB_ENV
+
+      - name: Enviar Ping a PostgREST / PostgreSQL
+        run: |
+          echo "📡 Enviando solicitud keep-alive a Supabase..."
+
+          START_TIME=$(date +%s%3N)
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${SUPABASE_URL}/rest/v1/pacientes?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json")
+          END_TIME=$(date +%s%3N)
+          DURATION=$((END_TIME - START_TIME))
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "⏱️ Tiempo de respuesta: ${DURATION}ms"
+          echo "📊 Código HTTP recibido: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Base de datos activa y respondiendo correctamente."
+            echo "Payload recibido: $BODY"
+          else
+            echo "::error::❌ Error al conectar con Supabase. Código HTTP: $HTTP_CODE"
+            echo "Detalle de respuesta: $BODY"
+            exit 1
+          fi
